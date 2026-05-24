@@ -3,6 +3,7 @@
 require_once('app/config/database.php');
 require_once('app/models/ProductModel.php');
 require_once('app/models/CategoryModel.php');
+require_once('app/models/OrderModel.php');
 
 class ProductController
 {
@@ -13,6 +14,7 @@ class ProductController
     {
         $this->db = (new Database())->getConnection();
         $this->productModel = new ProductModel($this->db);
+        $this->orderModel = new OrderModel($this->db);
     }
 
     public function index()
@@ -243,6 +245,105 @@ public function clearCart()
         $products = $this->productModel->getProducts();
         require_once 'app/views/product/list.php';
     }
+
+public function checkout()
+{
+    if (session_status() === PHP_SESSION_NONE) session_start();
+
+    $cart = $_SESSION['cart'] ?? [];
+    if (empty($cart)) {
+        header('Location: /Product/cart');
+        return;
+    }
+
+    include 'app/views/product/checkout.php';
 }
 
+public function placeOrder()
+{
+    if (session_status() === PHP_SESSION_NONE) session_start();
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        header('Location: /Product/checkout');
+        return;
+    }
+
+    $cart = $_SESSION['cart'] ?? [];
+    if (empty($cart)) {
+        header('Location: /Product/cart');
+        return;
+    }
+
+    $name    = trim($_POST['name']    ?? '');
+    $phone   = trim($_POST['phone']   ?? '');
+    $address = trim($_POST['address'] ?? '');
+
+    $errors = [];
+    if (!$name)    $errors[] = 'Vui lòng nhập họ tên.';
+    if (!$phone)   $errors[] = 'Vui lòng nhập số điện thoại.';
+    if (!$address) $errors[] = 'Vui lòng nhập địa chỉ.';
+
+    if (!empty($errors)) {
+        include 'app/views/product/checkout.php';
+        return;
+    }
+
+    $orderModel = new OrderModel($this->db);
+    $order_id   = $orderModel->createOrder($name, $phone, $address);
+
+    foreach ($cart as $product_id => $item) {
+        $orderModel->addOrderDetail(
+            $order_id,
+            $product_id,
+            $item['quantity'],
+            $item['price']
+        );
+    }
+
+    $_SESSION['cart'] = [];
+    header('Location: /Product/orderSuccess/' . $order_id);
+}
+
+public function orderSuccess($id)
+{
+    if (session_status() === PHP_SESSION_NONE) session_start();
+
+    $orderModel   = new OrderModel($this->db);
+    $order        = $orderModel->getOrderById($id);
+    $orderDetails = $orderModel->getOrderDetails($id);
+
+    if (!$order) {
+        header('Location: /Product');
+        return;
+    }
+
+    include 'app/views/product/order_success.php';
+}
+
+public function myOrders()
+{
+    if (session_status() === PHP_SESSION_NONE) session_start();
+
+    $orderModel = new OrderModel($this->db);
+    $orders     = $orderModel->getAllOrders();
+
+    include 'app/views/product/my_orders.php';
+}
+
+public function orderDetail($id)
+{
+    if (session_status() === PHP_SESSION_NONE) session_start();
+
+    $orderModel   = new OrderModel($this->db);
+    $order        = $orderModel->getOrderById($id);
+    $orderDetails = $orderModel->getOrderDetails($id);
+
+    if (!$order) {
+        header('Location: /Product/myOrders');
+        return;
+    }
+
+    include 'app/views/product/order_detail.php';
+}
+}
 ?>

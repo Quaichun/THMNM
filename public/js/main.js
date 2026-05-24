@@ -349,3 +349,277 @@ function showToast(msg, icon = '🛒') {
       if (!confirm('Xóa sản phẩm này khỏi giỏ hàng?')) e.preventDefault();
     });
   });
+
+/* ════════════════════════════════════════════════════════════
+   DROPDOWN — mobile toggle, desktop dùng CSS hover
+   ════════════════════════════════════════════════════════════ */
+const isMobile = () => window.innerWidth <= 768;
+
+document.querySelectorAll('.st-dropdown-toggle').forEach(toggle => {
+  toggle.addEventListener('click', e => {
+    e.preventDefault();
+    if (!isMobile()) return; // Desktop: CSS :hover xử lý
+
+    const li = toggle.closest('.st-dropdown');
+    const isOpen = li.classList.contains('open');
+
+    // Đóng tất cả
+    document.querySelectorAll('.st-dropdown').forEach(d => d.classList.remove('open'));
+
+    // Mở cái được click nếu chưa open
+    if (!isOpen) li.classList.add('open');
+  });
+});
+
+// Click ngoài → đóng (mobile)
+document.addEventListener('click', e => {
+  if (!e.target.closest('.st-dropdown') && isMobile()) {
+    document.querySelectorAll('.st-dropdown').forEach(d => d.classList.remove('open'));
+  }
+});
+
+// Resize window: reset open state
+window.addEventListener('resize', () => {
+  if (!isMobile()) {
+    document.querySelectorAll('.st-dropdown').forEach(d => d.classList.remove('open'));
+  }
+});
+
+/* ════════════════════════════════════════════════════════════
+   PAYMENT METHOD SELECTOR
+   ════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.st-pay-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.st-pay-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    opt.querySelector('input[type="radio"]').checked = true;
+  });
+});
+
+/* ════════════════════════════════════════════════════════════
+   PLACE ORDER BUTTON — loading state
+   ════════════════════════════════════════════════════════════ */
+const placeOrderBtn = document.getElementById('placeOrderBtn');
+if (placeOrderBtn) {
+  document.getElementById('checkoutForm')?.addEventListener('submit', () => {
+    placeOrderBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang xử lý...';
+    placeOrderBtn.disabled = true;
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   MOBILE NAV TOGGLE
+   ════════════════════════════════════════════════════════════ */
+document.getElementById('navToggle')?.addEventListener('click', () => {
+  document.getElementById('navLinks')?.classList.toggle('open');
+});
+
+/* ════════════════════════════════════════════════════════════
+   AUTH — password toggle
+   ════════════════════════════════════════════════════════════ */
+function togglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const icon  = btn.querySelector('i');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'bi bi-eye';
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   REGISTER — password strength + match checker
+   ════════════════════════════════════════════════════════════ */
+const pw1 = document.getElementById('pw1');
+const pw2 = document.getElementById('pw2');
+
+if (pw1) {
+  pw1.addEventListener('input', () => {
+    const val = pw1.value;
+    const bar = document.getElementById('pwStrengthBar');
+    const lbl = document.getElementById('pwStrengthLabel');
+    let score = 0;
+    if (val.length >= 6)               score++;
+    if (val.length >= 10)              score++;
+    if (/[A-Z]/.test(val))            score++;
+    if (/[0-9]/.test(val))            score++;
+    if (/[^A-Za-z0-9]/.test(val))    score++;
+
+    const levels = [
+      { w: '0%',   bg: '',               lbl: '',            col: '' },
+      { w: '25%',  bg: '#ef4444',        lbl: 'Yếu',         col: '#ef4444' },
+      { w: '50%',  bg: '#f59e0b',        lbl: 'Trung bình',  col: '#f59e0b' },
+      { w: '75%',  bg: '#3b82f6',        lbl: 'Khá mạnh',    col: '#3b82f6' },
+      { w: '90%',  bg: '#10b981',        lbl: 'Mạnh',        col: '#10b981' },
+      { w: '100%', bg: '#059669',        lbl: 'Rất mạnh',    col: '#059669' },
+    ];
+    const lvl = levels[Math.min(score, 5)];
+    if (bar) { bar.style.width = lvl.w; bar.style.background = lvl.bg; }
+    if (lbl) { lbl.textContent = lvl.lbl; lbl.style.color = lvl.col; }
+
+    if (pw2 && pw2.value) checkMatch();
+  });
+}
+
+if (pw2) pw2.addEventListener('input', checkMatch);
+
+function checkMatch() {
+  const el = document.getElementById('pwMatch');
+  if (!el || !pw1 || !pw2) return;
+  if (pw2.value === '') { el.textContent = ''; return; }
+  if (pw1.value === pw2.value) {
+    el.textContent = '✅ Mật khẩu khớp';
+    el.style.color = '#10b981';
+  } else {
+    el.textContent = '❌ Mật khẩu chưa khớp';
+    el.style.color = '#ef4444';
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   AVATAR UPLOAD
+   ════════════════════════════════════════════════════════════ */
+
+// ── Sidebar: click overlay → chọn file → submit ngay ──
+const avatarFileInput = document.getElementById('avatarFileInput');
+const avatarForm      = document.getElementById('avatarForm');
+const avatarStatus    = document.getElementById('avatarStatus');
+
+if (avatarFileInput && avatarForm) {
+  avatarFileInput.addEventListener('change', () => {
+    const file = avatarFileInput.files[0];
+    if (!file) return;
+
+    // Validate phía client
+    const maxMB = 3;
+    const allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+    if (!allowed.includes(file.type)) {
+      showAvatarStatus('❌ Chỉ chấp nhận JPG, PNG, GIF, WEBP', '#ef4444');
+      avatarFileInput.value = '';
+      return;
+    }
+    if (file.size > maxMB * 1024 * 1024) {
+      showAvatarStatus('❌ Ảnh vượt quá 3MB', '#ef4444');
+      avatarFileInput.value = '';
+      return;
+    }
+
+    // Preview ngay trong sidebar
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const wrap = document.getElementById('avatarWrap');
+      if (!wrap) return;
+      const existing = wrap.querySelector('.st-avatar-img, .st-avatar-circle');
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      img.className = 'st-avatar-img';
+      img.id = 'avatarPreview';
+      if (existing) existing.replaceWith(img);
+      else wrap.prepend(img);
+    };
+    reader.readAsDataURL(file);
+
+    showAvatarStatus('⏳ Đang tải lên...', '#3b82f6');
+    avatarForm.submit();
+  });
+}
+
+function showAvatarStatus(msg, color) {
+  if (!avatarStatus) return;
+  avatarStatus.textContent = msg;
+  avatarStatus.style.color = color;
+}
+
+// ── Detail section: preview trước khi lưu ──
+const avatarFileInput2 = document.getElementById('avatarFileInput2');
+const avatarNewPreview = document.getElementById('avatarNewPreview');
+const avatarNewImg     = document.getElementById('avatarNewImg');
+const avatarNewName    = document.getElementById('avatarNewName');
+const avatarNewSize    = document.getElementById('avatarNewSize');
+const avatarRemoveBtn  = document.getElementById('avatarRemoveBtn');
+const avatarSaveBtn    = document.getElementById('avatarSaveBtn');
+const avatarFileHidden = document.getElementById('avatarFileHidden');
+const avatarFormDetail = document.getElementById('avatarFormDetail');
+const detailPreview    = document.getElementById('avatarDetailPreview');
+const detailImg        = document.getElementById('avatarDetailImg');
+const detailInitial    = document.getElementById('avatarDetailInitial');
+const dropZone         = document.getElementById('avatarDropZone');
+
+function handleAvatarFile(file) {
+  if (!file) return;
+
+  const allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+  if (!allowed.includes(file.type)) {
+    alert('Chỉ chấp nhận JPG, PNG, GIF, WEBP');
+    return;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    alert('Ảnh không được vượt quá 3MB');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const src = ev.target.result;
+
+    // Preview nhỏ (box bên dưới input)
+    if (avatarNewImg)  avatarNewImg.src = src;
+    if (avatarNewName) avatarNewName.textContent = file.name;
+    if (avatarNewSize) avatarNewSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+    avatarNewPreview?.classList.add('show');
+
+    // Preview lớn (circle 120px)
+    if (detailPreview) {
+      if (detailImg) {
+        detailImg.src = src;
+      } else if (detailInitial) {
+        const img = document.createElement('img');
+        img.src = src;
+        img.id  = 'avatarDetailImg';
+        detailInitial.replaceWith(img);
+      }
+      detailPreview.classList.add('has-new');
+    }
+
+    // Chuyển file sang form ẩn để submit
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    if (avatarFileHidden) avatarFileHidden.files = dt.files;
+    if (avatarSaveBtn) avatarSaveBtn.style.display = 'inline-flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+// Chọn file qua input
+avatarFileInput2?.addEventListener('change', () => {
+  handleAvatarFile(avatarFileInput2.files[0]);
+});
+
+// Nút xóa preview
+avatarRemoveBtn?.addEventListener('click', () => {
+  if (avatarNewImg)  avatarNewImg.src = '';
+  if (avatarNewName) avatarNewName.textContent = '—';
+  if (avatarNewSize) avatarNewSize.textContent = '—';
+  avatarNewPreview?.classList.remove('show');
+  if (avatarSaveBtn) avatarSaveBtn.style.display = 'none';
+  if (avatarFileInput2) avatarFileInput2.value = '';
+  if (avatarFileHidden) avatarFileHidden.value = '';
+  detailPreview?.classList.remove('has-new');
+});
+
+// Drag & drop
+dropZone?.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone?.addEventListener('dragleave', () => {
+  dropZone.classList.remove('dragover');
+});
+dropZone?.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleAvatarFile(file);
+});
