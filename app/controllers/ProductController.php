@@ -30,7 +30,7 @@ class ProductController
         if ($product) {
             include 'app/views/product/show.php';
         } else {
-            echo "Không thấy sản phẩm.";
+            echo "Khong thay san pham.";
         }
     }
 
@@ -43,7 +43,6 @@ class ProductController
     public function save()
     {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-
             $name = $_POST['name'] ?? '';
             $description = $_POST['description'] ?? '';
             $price = $_POST['price'] ?? '';
@@ -64,14 +63,10 @@ class ProductController
             );
 
             if (is_array($result)) {
-
                 $errors = $result;
                 $categories = (new CategoryModel($this->db))->getCategories();
-
                 include 'app/views/product/add.php';
-
             } else {
-
                 header('Location: /Product');
             }
         }
@@ -85,14 +80,13 @@ class ProductController
         if ($product) {
             include 'app/views/product/edit.php';
         } else {
-            echo "Không thấy sản phẩm.";
+            echo "Khong thay san pham.";
         }
     }
 
     public function update()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
             $id = $_POST['id'];
             $name = $_POST['name'];
             $description = $_POST['description'];
@@ -117,7 +111,7 @@ class ProductController
             if ($edit) {
                 header('Location: /Product');
             } else {
-                echo "Đã xảy ra lỗi khi lưu sản phẩm.";
+                echo "Da xay ra loi khi luu san pham.";
             }
         }
     }
@@ -127,7 +121,7 @@ class ProductController
         if ($this->productModel->deleteProduct($id)) {
             header('Location: /Product');
         } else {
-            echo "Đã xảy ra lỗi khi xóa sản phẩm.";
+            echo "Da xay ra loi khi xoa san pham.";
         }
     }
 
@@ -140,105 +134,135 @@ class ProductController
         }
 
         $target_file = $target_dir . basename($file["name"]);
-
-        $imageFileType = strtolower(
-            pathinfo($target_file, PATHINFO_EXTENSION)
-        );
-
+        $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
         $check = getimagesize($file["tmp_name"]);
 
         if ($check === false) {
-            throw new Exception("File không phải là hình ảnh.");
+            throw new Exception("File khong phai la hinh anh.");
         }
-
         if ($file["size"] > 10 * 1024 * 1024) {
-            throw new Exception("Hình ảnh có kích thước quá lớn.");
+            throw new Exception("Hinh anh co kich thuoc qua lon.");
         }
-
         if (!in_array($imageFileType, ["jpg", "jpeg", "png", "gif"])) {
-            throw new Exception(
-                "Chỉ cho phép các định dạng JPG, JPEG, PNG và GIF."
-            );
+            throw new Exception("Chi cho phep JPG, JPEG, PNG va GIF.");
         }
-
         if (!move_uploaded_file($file["tmp_name"], $target_file)) {
-            throw new Exception(
-                "Có lỗi xảy ra khi tải lên hình ảnh."
-            );
+            throw new Exception("Co loi xay ra khi tai len hinh anh.");
         }
 
         return $target_file;
     }
 
     public function cart()
-{
-    session_start();
-    $cart = $_SESSION['cart'] ?? [];
-    include 'app/views/product/cart.php';
-}
-
-public function addToCart($id)
-{
-    session_start();
-    $product = $this->productModel->getProductById($id);
-
-    if (!$product) {
-        header('Location: /Product');
-        return;
+    {
+        session_start();
+        $cart = $_SESSION['cart'] ?? [];
+        include 'app/views/product/cart.php';
     }
 
-    if (!isset($_SESSION['cart'])) {
-        $_SESSION['cart'] = [];
-    }
+    public function addToCart($id)
+    {
+        session_start();
+        $product = $this->productModel->getProductById($id);
 
-    if (isset($_SESSION['cart'][$id])) {
-        $_SESSION['cart'][$id]['quantity']++;
-    } else {
-        $_SESSION['cart'][$id] = [
-            'name'     => $product->name,
-            'price'    => $product->price,
-            'quantity' => 1,
-            'image'    => $product->image
-        ];
-    }
-
-    header('Location: /Product/cart');
-}
-
-public function increaseQuantity($id)
-{
-    session_start();
-    if (isset($_SESSION['cart'][$id])) {
-        $_SESSION['cart'][$id]['quantity']++;
-    }
-    header('Location: /Product/cart');
-}
-
-public function decreaseQuantity($id)
-{
-    session_start();
-    if (isset($_SESSION['cart'][$id])) {
-        $_SESSION['cart'][$id]['quantity']--;
-        if ($_SESSION['cart'][$id]['quantity'] <= 0) {
-            unset($_SESSION['cart'][$id]);
+        if (!$product) {
+            header('Location: /Product');
+            return;
         }
+
+        if (!isset($_SESSION['cart'])) {
+            $_SESSION['cart'] = [];
+        }
+
+        if (isset($_SESSION['cart'][$id])) {
+            $_SESSION['cart'][$id]['quantity']++;
+        } else {
+            $_SESSION['cart'][$id] = [
+                'name' => $product->name,
+                'price' => $product->price,
+                'quantity' => 1,
+                'image' => $product->image
+            ];
+        }
+
+        $_SESSION['flash']['success'] = 'Da them vao gio hang!';
+        $_SESSION['flash']['cart_added'] = [
+            'id' => $id,
+            'name' => $product->name,
+            'price' => $product->price,
+            'image' => $product->image,
+            'quantity' => $_SESSION['cart'][$id]['quantity']
+        ];
+
+        $cartCount = 0;
+        foreach ($_SESSION['cart'] as $item) {
+            $cartCount += (int)$item['quantity'];
+        }
+
+        $isAjax = (
+            (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (isset($_GET['ajax']) && $_GET['ajax'] == '1')
+        );
+
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Da them vao gio hang!',
+                'cart_count' => $cartCount,
+                'item' => $_SESSION['flash']['cart_added']
+            ]);
+            exit;
+        }
+
+        $redirectUrl = '/Product/list';
+        if (!empty($_SERVER['HTTP_REFERER'])) {
+            $refPath  = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_PATH);
+            $refQuery = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_QUERY);
+
+            if (is_string($refPath) && strpos($refPath, '/Product') === 0) {
+                $redirectUrl = $refPath . ($refQuery ? ('?' . $refQuery) : '');
+            }
+        }
+
+        header('Location: ' . $redirectUrl);
+        exit;
     }
-    header('Location: /Product/cart');
-}
 
-public function removeFromCart($id)
-{
-    session_start();
-    unset($_SESSION['cart'][$id]);
-    header('Location: /Product/cart');
-}
+    public function increaseQuantity($id)
+    {
+        session_start();
+        if (isset($_SESSION['cart'][$id])) {
+            $_SESSION['cart'][$id]['quantity']++;
+        }
+        header('Location: /Product/cart');
+    }
 
-public function clearCart()
-{
-    session_start();
-    $_SESSION['cart'] = [];
-    header('Location: /Product/cart');
-}
+    public function decreaseQuantity($id)
+    {
+        session_start();
+        if (isset($_SESSION['cart'][$id])) {
+            $_SESSION['cart'][$id]['quantity']--;
+            if ($_SESSION['cart'][$id]['quantity'] <= 0) {
+                unset($_SESSION['cart'][$id]);
+            }
+        }
+        header('Location: /Product/cart');
+    }
+
+    public function removeFromCart($id)
+    {
+        session_start();
+        unset($_SESSION['cart'][$id]);
+        header('Location: /Product/cart');
+    }
+
+    public function clearCart()
+    {
+        session_start();
+        $_SESSION['cart'] = [];
+        header('Location: /Product/cart');
+    }
 
     public function list()
     {
@@ -246,104 +270,223 @@ public function clearCart()
         require_once 'app/views/product/list.php';
     }
 
-public function checkout()
-{
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    public function checkout()
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
 
-    $cart = $_SESSION['cart'] ?? [];
-    if (empty($cart)) {
-        header('Location: /Product/cart');
-        return;
-    }
+        $cart = $_SESSION['cart'] ?? [];
+        if (empty($cart)) {
+            header('Location: /Product/cart');
+            return;
+        }
 
-    include 'app/views/product/checkout.php';
-}
+        $orderModel = new OrderModel($this->db);
+        $nextOrderId = $orderModel->getNextOrderId();
 
-public function placeOrder()
-{
-    if (session_status() === PHP_SESSION_NONE) session_start();
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: /Product/checkout');
-        return;
-    }
-
-    $cart = $_SESSION['cart'] ?? [];
-    if (empty($cart)) {
-        header('Location: /Product/cart');
-        return;
-    }
-
-    $name    = trim($_POST['name']    ?? '');
-    $phone   = trim($_POST['phone']   ?? '');
-    $address = trim($_POST['address'] ?? '');
-
-    $errors = [];
-    if (!$name)    $errors[] = 'Vui lòng nhập họ tên.';
-    if (!$phone)   $errors[] = 'Vui lòng nhập số điện thoại.';
-    if (!$address) $errors[] = 'Vui lòng nhập địa chỉ.';
-
-    if (!empty($errors)) {
         include 'app/views/product/checkout.php';
-        return;
     }
 
-    $orderModel = new OrderModel($this->db);
-    $order_id   = $orderModel->createOrder($name, $phone, $address);
+    public function placeOrder()
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
 
-    foreach ($cart as $product_id => $item) {
-        $orderModel->addOrderDetail(
-            $order_id,
-            $product_id,
-            $item['quantity'],
-            $item['price']
-        );
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: /Product/checkout');
+            return;
+        }
+
+        $cart = $_SESSION['cart'] ?? [];
+        if (empty($cart)) {
+            header('Location: /Product/cart');
+            return;
+        }
+
+        $name = trim($_POST['name'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $address = trim($_POST['address'] ?? '');
+        $payment = trim($_POST['payment'] ?? 'cod');
+
+        $errors = [];
+        if (!$name) $errors[] = 'Vui lòng nhập họ tên.';
+        if (!$phone) $errors[] = 'Vui lòng nhập số điện thoại.';
+        if (!$email) $errors[] = 'Vui lòng nhập email.';
+        if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Email không đúng định dạng.';
+        }
+        if (!$address) $errors[] = 'Vui lòng nhập địa chỉ.';
+
+        if ($payment === 'qr') {
+            $payment = 'bank';
+        }
+
+        $allowedPayments = ['cod', 'bank'];
+        if (!in_array($payment, $allowedPayments, true)) {
+            $payment = 'cod';
+        }
+
+        if (!empty($errors)) {
+            $orderModel = new OrderModel($this->db);
+            $nextOrderId = $orderModel->getNextOrderId();
+            include 'app/views/product/checkout.php';
+            return;
+        }
+
+        $orderModel = new OrderModel($this->db);
+        $order_id = $orderModel->createOrder($name, $phone, $email, $address, $payment);
+
+        foreach ($cart as $product_id => $item) {
+            $orderModel->addOrderDetail(
+                $order_id,
+                $product_id,
+                $item['quantity'],
+                $item['price']
+            );
+        }
+
+        $_SESSION['cart'] = [];
+        header('Location: /Product/orderSuccess/' . $order_id);
     }
 
-    $_SESSION['cart'] = [];
-    header('Location: /Product/orderSuccess/' . $order_id);
-}
+    public function orderSuccess($id)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
 
-public function orderSuccess($id)
-{
-    if (session_status() === PHP_SESSION_NONE) session_start();
+        $orderModel = new OrderModel($this->db);
+        $order = $orderModel->getOrderById($id);
+        $orderDetails = $orderModel->getOrderDetails($id);
 
-    $orderModel   = new OrderModel($this->db);
-    $order        = $orderModel->getOrderById($id);
-    $orderDetails = $orderModel->getOrderDetails($id);
+        if (!$order) {
+            header('Location: /Product');
+            return;
+        }
 
-    if (!$order) {
-        header('Location: /Product');
-        return;
+        include 'app/views/product/order_success.php';
     }
 
-    include 'app/views/product/order_success.php';
-}
+    public function myOrders()
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
 
-public function myOrders()
-{
-    if (session_status() === PHP_SESSION_NONE) session_start();
+        $orderModel = new OrderModel($this->db);
+        $orders = $orderModel->getAllOrders();
 
-    $orderModel = new OrderModel($this->db);
-    $orders     = $orderModel->getAllOrders();
-
-    include 'app/views/product/my_orders.php';
-}
-
-public function orderDetail($id)
-{
-    if (session_status() === PHP_SESSION_NONE) session_start();
-
-    $orderModel   = new OrderModel($this->db);
-    $order        = $orderModel->getOrderById($id);
-    $orderDetails = $orderModel->getOrderDetails($id);
-
-    if (!$order) {
-        header('Location: /Product/myOrders');
-        return;
+        include 'app/views/product/my_orders.php';
     }
 
-    include 'app/views/product/order_detail.php';
-}
+    public function orderDetail($id)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+
+        $orderModel = new OrderModel($this->db);
+        $order = $orderModel->getOrderById($id);
+        $orderDetails = $orderModel->getOrderDetails($id);
+
+        if (!$order) {
+            header('Location: /Product/myOrders');
+            return;
+        }
+
+        include 'app/views/product/order_detail.php';
+    }
+
+    public function updateOrderStatus($id)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: /Product/orderDetail/' . (int)$id);
+            return;
+        }
+
+        $allowed = ['pending', 'processing', 'shipping', 'delivered', 'cancelled'];
+        $status = $_POST['status'] ?? 'pending';
+        if (!in_array($status, $allowed, true)) {
+            $status = 'pending';
+        }
+
+        $orderModel = new OrderModel($this->db);
+        $updated = $orderModel->updateStatus((int)$id, $status);
+
+        if ($updated) {
+            $_SESSION['flash']['success'] = 'Đã cập nhật trạng thái đơn hàng.';
+        } else {
+            $_SESSION['flash']['success'] = 'Chưa cập nhật được trạng thái. Vui lòng thêm cột status cho bảng orders.';
+        }
+        header('Location: /Product/orderDetail/' . (int)$id);
+        exit;
+    }
+
+    public function paymentQr()
+    {
+        $amount = isset($_GET['amount']) ? (int)$_GET['amount'] : 0;
+        if ($amount < 0) $amount = 0;
+
+        $code = trim($_GET['code'] ?? '');
+        if ($code === '') {
+            $code = 'mh0';
+        }
+
+        $vietQrUrl = 'https://img.vietqr.io/image/mb-0775632430-compact2.png'
+            . '?amount=' . $amount
+            . '&addInfo=' . rawurlencode($code)
+            . '&accountName=' . rawurlencode('Nguyen Hoai Trung');
+
+        $imgData = null;
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($vietQrUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'ShopTech-QR/1.0');
+            $res = curl_exec($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($res !== false && $httpCode >= 200 && $httpCode < 300) {
+                $imgData = $res;
+            }
+        }
+
+        if ($imgData === null) {
+            $fallbackUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='
+                . rawurlencode('MB|0775632430|Nguyen Hoai Trung|' . $code . '|amount:' . $amount);
+
+            if (function_exists('curl_init')) {
+                $ch = curl_init($fallbackUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+                $res = curl_exec($ch);
+                $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                if ($res !== false && $httpCode >= 200 && $httpCode < 300) {
+                    $imgData = $res;
+                }
+            }
+
+            if ($imgData === null && ini_get('allow_url_fopen')) {
+                $res = @file_get_contents($fallbackUrl);
+                if ($res !== false) {
+                    $imgData = $res;
+                }
+            }
+        }
+
+        if ($imgData !== null) {
+            header('Content-Type: image/png');
+            header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            echo $imgData;
+            exit;
+        }
+
+        http_response_code(500);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo 'QR currently unavailable';
+        exit;
+    }
 }
 ?>

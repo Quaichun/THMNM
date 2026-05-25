@@ -315,16 +315,56 @@ function showToast(msg, icon = '🛒') {
     toast._timer = setTimeout(() => toast.classList.remove('show'), 2800);
   }
   
-  // Badge bump animation khi click "Thêm vào giỏ hàng"
+  // Add to cart qua AJAX: không reload trang
   document.querySelectorAll('a[href*="addToCart"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cartBtn = document.getElementById('cartNavBtn');
-      if (cartBtn) {
-        cartBtn.classList.remove('bump');
-        void cartBtn.offsetWidth; // reflow để restart animation
-        cartBtn.classList.add('bump');
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const url = btn.getAttribute('href');
+      if (!url) return;
+
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.7';
+
+      try {
+        const response = await fetch(url + (url.includes('?') ? '&ajax=1' : '?ajax=1'), {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+          },
+          credentials: 'same-origin'
+        });
+
+        if (!response.ok) throw new Error('Request failed');
+        const data = await response.json();
+        if (!data || !data.success) throw new Error('Add failed');
+
+        const cartBtn = document.getElementById('cartNavBtn');
+        if (cartBtn) {
+          cartBtn.classList.remove('bump');
+          void cartBtn.offsetWidth;
+          cartBtn.classList.add('bump');
+        }
+
+        const count = parseInt(data.cart_count || 0, 10);
+        const cartBadge = document.getElementById('cartBadge');
+        if (cartBadge) {
+          cartBadge.textContent = count;
+          cartBadge.style.display = count > 0 ? 'inline-flex' : 'none';
+        }
+
+        document.querySelectorAll('.st-dd-badge').forEach(el => {
+          el.textContent = count;
+          el.style.display = count > 0 ? 'inline-flex' : 'none';
+        });
+
+        showToast(data.message || 'Đã thêm vào giỏ hàng!', '✅');
+      } catch (err) {
+        showToast('Có lỗi khi thêm vào giỏ hàng', '⚠️');
+      } finally {
+        btn.style.pointerEvents = '';
+        btn.style.opacity = '';
       }
-      showToast('Đã thêm vào giỏ hàng!', '✅');
     });
   });
   
