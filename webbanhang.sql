@@ -57,7 +57,10 @@ CREATE TABLE IF NOT EXISTS `orders` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `phone` varchar(20) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `payment_method` varchar(50) NOT NULL DEFAULT 'cod',
   `address` text NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

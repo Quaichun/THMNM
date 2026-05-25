@@ -201,6 +201,10 @@ window.ST_PRODUCTS = <?php echo json_encode(array_map(function($p) {
                class="btn btn-warning btn-sm">
               <i class="bi bi-pencil"></i>
             </a>
+            <a href="/Product/addToCart/<?php echo $p->id; ?>"
+               class="btn btn-success btn-sm">
+              <i class="bi bi-cart-plus"></i>
+            </a>
             <a href="/Product/delete/<?php echo $p->id; ?>"
                class="btn btn-danger btn-sm btn-delete-confirm">
               <i class="bi bi-trash"></i>
