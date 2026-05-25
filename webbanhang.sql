@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
--- Host:                         127.0.0.1
+-- Máy chủ:                      127.0.0.1
 -- Server version:               8.0.30 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.1.0.6537
+-- HeidiSQL Phiên bản:           12.1.0.6537
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -19,13 +19,30 @@
 CREATE DATABASE IF NOT EXISTS `my_store` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 USE `my_store`;
 
+-- Dumping structure for table my_store.account
+CREATE TABLE IF NOT EXISTS `account` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
+  `fullname` varchar(255) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `role` enum('admin','user') DEFAULT 'user',
+  `avatar` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table my_store.account: ~2 rows (approximately)
+INSERT INTO `account` (`id`, `username`, `fullname`, `password`, `role`, `avatar`) VALUES
+	(1, 'user123', 'Nguyễn Hoài Trung', '$2y$10$YjbSmSEV50U5bVPSbMu2zex2w2fKKAcQvDWqqigTFdTZKzE8.fFEG', 'user', 'uploads/avatars/avatar_1_1779633062.jpg'),
+	(2, 'admin@gmail.com', 'NTT', '$2y$10$5swG6r01qgzPVhkjaWXwK.2hIkkcY7Y8uuWbwKXLcmYhsnwSe/1UO', 'user', NULL);
+
 -- Dumping structure for table my_store.category
 CREATE TABLE IF NOT EXISTS `category` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
   `description` text,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table my_store.category: ~5 rows (approximately)
 INSERT INTO `category` (`id`, `name`, `description`) VALUES
@@ -34,6 +51,38 @@ INSERT INTO `category` (`id`, `name`, `description`) VALUES
 	(3, 'Máy tính bảng', 'Danh mục các loại máy tính bảng'),
 	(4, 'Phụ kiện', 'Danh mục phụ kiện điện tử'),
 	(5, 'Thiết bị âm thanh', 'Danh mục loa, tai nghe, micro');
+
+-- Dumping structure for table my_store.orders
+CREATE TABLE IF NOT EXISTS `orders` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `address` text NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table my_store.orders: ~0 rows (approximately)
+INSERT INTO `orders` (`id`, `name`, `phone`, `address`, `created_at`) VALUES
+	(1, 'Nguyễn Hoài Trung', '0125698764', 'Thủ đức', '2026-05-23 14:26:09');
+
+-- Dumping structure for table my_store.order_details
+CREATE TABLE IF NOT EXISTS `order_details` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `order_id` int NOT NULL,
+  `product_id` int NOT NULL,
+  `quantity` int NOT NULL,
+  `price` decimal(10,2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `order_id` (`order_id`),
+  CONSTRAINT `order_details_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Dumping data for table my_store.order_details: ~2 rows (approximately)
+INSERT INTO `order_details` (`id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
+	(1, 1, 3, 1, 20000000.00),
+	(2, 1, 5, 1, 41000000.00),
+	(3, 1, 8, 1, 27000000.00);
 
 -- Dumping structure for table my_store.product
 CREATE TABLE IF NOT EXISTS `product` (
@@ -48,7 +97,7 @@ CREATE TABLE IF NOT EXISTS `product` (
   CONSTRAINT `product_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `category` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table my_store.product: ~8 rows (approximately)
+-- Dumping data for table my_store.product: ~7 rows (approximately)
 INSERT INTO `product` (`id`, `name`, `description`, `price`, `image`, `category_id`) VALUES
 	(2, 'IPhone 15 pro max', 'tttt', 28000000.00, 'uploads/iphone15pr.jpg', 1),
 	(3, 'Macbook', 'jj', 20000000.00, 'uploads/macbook.jpg', 2),
