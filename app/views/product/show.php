@@ -57,17 +57,45 @@
     </div>
 
     <!-- Actions -->
-    <div class="d-flex gap-3 align-items-center" style="margin-top:8px;">
-      <a href="/Product/addToCart/<?php echo $product->id; ?>" class="btn btn-primary btn-lg">
+
+<div class="d-flex gap-3 align-items-center" style="margin-top:8px;">
+
+```
+<?php if (SessionHelper::isLoggedIn()): ?>
+
+    <a href="/Product/addToCart/<?php echo $product->id; ?>"
+       class="btn btn-primary btn-lg">
         <i class="bi bi-cart-plus"></i> Thêm vào giỏ hàng
-      </a>
-      <a href="/Product/edit/<?php echo $product->id; ?>" class="btn btn-warning btn-lg">
+    </a>
+
+<?php else: ?>
+
+    <a href="/Account/login"
+       class="btn btn-primary btn-lg">
+        <i class="bi bi-box-arrow-in-right"></i>
+        Đăng nhập để mua hàng
+    </a>
+
+<?php endif; ?>
+
+
+<?php if (SessionHelper::isAdmin()): ?>
+
+    <a href="/Product/edit/<?php echo $product->id; ?>"
+       class="btn btn-warning btn-lg">
         <i class="bi bi-pencil"></i> Sửa
-      </a>
-      <a href="/Product/delete/<?php echo $product->id; ?>" class="btn btn-danger btn-sm btn-delete-confirm">
+    </a>
+
+    <a href="/Product/delete/<?php echo $product->id; ?>"
+       class="btn btn-danger btn-sm btn-delete-confirm">
         <i class="bi bi-trash"></i>
-      </a>
-    </div>
+    </a>
+
+<?php endif; ?>
+```
+
+</div>
+
 
   </div>
 </div>

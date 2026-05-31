@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `account` (
 -- Dumping data for table my_store.account: ~2 rows (approximately)
 INSERT INTO `account` (`id`, `username`, `fullname`, `password`, `role`, `avatar`) VALUES
 	(1, 'user123', 'Nguyễn Hoài Trung', '$2y$10$YjbSmSEV50U5bVPSbMu2zex2w2fKKAcQvDWqqigTFdTZKzE8.fFEG', 'user', 'uploads/avatars/avatar_1_1779633062.jpg'),
-	(2, 'admin@gmail.com', 'NTT', '$2y$10$5swG6r01qgzPVhkjaWXwK.2hIkkcY7Y8uuWbwKXLcmYhsnwSe/1UO', 'user', NULL);
+	(2, 'admin@gmail.com', 'NTT', '$2y$10$5swG6r01qgzPVhkjaWXwK.2hIkkcY7Y8uuWbwKXLcmYhsnwSe/1UO', 'admin', NULL);
 
 -- Dumping structure for table my_store.category
 CREATE TABLE IF NOT EXISTS `category` (
@@ -62,12 +62,16 @@ CREATE TABLE IF NOT EXISTS `orders` (
   `address` text NOT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `user_id` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `account` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table my_store.orders: ~0 rows (approximately)
-INSERT INTO `orders` (`id`, `name`, `phone`, `address`, `created_at`) VALUES
-	(1, 'Nguyễn Hoài Trung', '0125698764', 'Thủ đức', '2026-05-23 14:26:09');
+-- Dumping data for table my_store.orders: ~1 rows (approximately)
+INSERT INTO `orders` (`id`, `name`, `phone`, `email`, `payment_method`, `address`, `status`, `created_at`, `user_id`) VALUES
+	(1, 'Nguyễn Hoài Trung', '0125698764', NULL, 'cod', 'Thủ đức', 'delivered', '2026-05-23 14:26:09', NULL),
+	(2, 'Nguyễn Hoài Trung', '0125698764', 'tn@gmail.com', 'cod', 'Thu Duc', 'pending', '2026-05-31 17:21:19', 1);
 
 -- Dumping structure for table my_store.order_details
 CREATE TABLE IF NOT EXISTS `order_details` (
@@ -79,13 +83,14 @@ CREATE TABLE IF NOT EXISTS `order_details` (
   PRIMARY KEY (`id`),
   KEY `order_id` (`order_id`),
   CONSTRAINT `order_details_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table my_store.order_details: ~2 rows (approximately)
 INSERT INTO `order_details` (`id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
 	(1, 1, 3, 1, 20000000.00),
 	(2, 1, 5, 1, 41000000.00),
-	(3, 1, 8, 1, 27000000.00);
+	(3, 1, 8, 1, 27000000.00),
+	(4, 2, 5, 1, 41000000.00);
 
 -- Dumping structure for table my_store.product
 CREATE TABLE IF NOT EXISTS `product` (
@@ -98,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `product` (
   PRIMARY KEY (`id`),
   KEY `category_id` (`category_id`),
   CONSTRAINT `product_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `category` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table my_store.product: ~7 rows (approximately)
 INSERT INTO `product` (`id`, `name`, `description`, `price`, `image`, `category_id`) VALUES
@@ -108,7 +113,17 @@ INSERT INTO `product` (`id`, `name`, `description`, `price`, `image`, `category_
 	(7, 'Lenovo Legion 5', 'Laptop gaming cấu hình cao', 32000000.00, 'uploads/Lenovo Legion 5.JPG', 2),
 	(8, 'MacBook Air M2', 'Laptop mỏng nhẹ dành cho học tập và làm việc', 27000000.00, 'uploads/MacBook Air M2.JPG', 2),
 	(9, 'iPad Pro 11', 'Máy tính bảng Apple màn hình Liquid Retina', 26000000.00, 'uploads/iPad Pro 11.JPG', 3),
-	(10, 'Tai nghe Sony WH-1000XM5', 'Tai nghe chống ồn cao cấp Sony', 8900000.00, 'uploads/Tai nghe Sony WH-1000XM5.JPG', 5);
+	(10, 'Tai nghe Sony WH-1000XM5', 'Tai nghe chống ồn cao cấp Sony', 8900000.00, 'uploads/Tai nghe Sony WH-1000XM5.JPG', 5),
+	(12, 'iPhone 16 Pro', 'Điện thoại Apple hiệu năng mạnh mẽ với chip A18 Pro', 35000000.00, 'uploads/iPhone16Pro.jpg', 1),
+	(13, 'Samsung Galaxy S25 Ultra', 'Flagship Samsung với camera zoom vượt trội', 38000000.00, 'uploads/GalaxyS25Ultra.jpg', 1),
+	(14, 'Xiaomi 15 Ultra', 'Điện thoại cao cấp Xiaomi chụp ảnh chuyên nghiệp', 29000000.00, 'uploads/Xiaomi15Ultra.jpg', 1),
+	(15, 'ASUS ROG Strix G18', 'Laptop gaming màn hình lớn hiệu năng cực cao', 42000000.00, 'uploads/ROGStrixG18.jpg', 2),
+	(16, 'Dell XPS 15', 'Laptop cao cấp dành cho doanh nhân và lập trình viên', 36000000.00, 'uploads/DellXPS15.jpg', 2),
+	(17, 'HP Spectre x360', 'Laptop cảm ứng xoay gập sang trọng', 34000000.00, 'uploads/HPSpectrex360.jpg', 2),
+	(18, 'iPad Air M3', 'Máy tính bảng Apple mỏng nhẹ cho học tập và giải trí', 22000000.00, 'uploads/iPadAirM3.jpg', 3),
+	(19, 'Samsung Galaxy Tab S10', 'Máy tính bảng Android cao cấp màn hình AMOLED', 21000000.00, 'uploads/GalaxyTabS10.jpg', 3),
+	(20, 'AirPods Pro 2', 'Tai nghe không dây chống ồn chủ động của Apple', 6500000.00, 'uploads/AirPodsPro2.jpg', 5),
+	(21, 'Logitech MX Master 3S', 'Chuột không dây cao cấp dành cho dân văn phòng', 2800000.00, 'uploads/MXMaster3S.jpg', 5);
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

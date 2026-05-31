@@ -4,6 +4,7 @@ require_once('app/config/database.php');
 require_once('app/models/ProductModel.php');
 require_once('app/models/CategoryModel.php');
 require_once('app/models/OrderModel.php');
+require_once('app/helpers/SessionHelper.php');
 
 class ProductController
 {
@@ -15,6 +16,7 @@ class ProductController
         $this->db = (new Database())->getConnection();
         $this->productModel = new ProductModel($this->db);
         $this->orderModel = new OrderModel($this->db);
+        SessionHelper::start();
     }
 
     public function index()
@@ -30,18 +32,21 @@ class ProductController
         if ($product) {
             include 'app/views/product/show.php';
         } else {
-            echo "Khong thay san pham.";
+            SessionHelper::setFlash('error', 'Không tìm thấy sản phẩm.');
+            header('Location: /Product');
         }
     }
 
     public function add()
     {
+        SessionHelper::requireAdmin();
         $categories = (new CategoryModel($this->db))->getCategories();
         include_once 'app/views/product/add.php';
     }
 
     public function save()
     {
+        SessionHelper::requireAdmin();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $name = $_POST['name'] ?? '';
             $description = $_POST['description'] ?? '';
@@ -74,6 +79,7 @@ class ProductController
 
     public function edit($id)
     {
+        SessionHelper::requireAdmin();
         $product = $this->productModel->getProductById($id);
         $categories = (new CategoryModel($this->db))->getCategories();
 
@@ -86,6 +92,7 @@ class ProductController
 
     public function update()
     {
+        SessionHelper::requireAdmin();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = $_POST['id'];
             $name = $_POST['name'];
@@ -118,6 +125,7 @@ class ProductController
 
     public function delete($id)
     {
+        SessionHelper::requireAdmin();
         if ($this->productModel->deleteProduct($id)) {
             header('Location: /Product');
         } else {
@@ -155,14 +163,15 @@ class ProductController
 
     public function cart()
     {
-        session_start();
+        SessionHelper::requireLogin();
+
         $cart = $_SESSION['cart'] ?? [];
         include 'app/views/product/cart.php';
     }
 
     public function addToCart($id)
     {
-        session_start();
+        SessionHelper::requireLogin();
         $product = $this->productModel->getProductById($id);
 
         if (!$product) {
@@ -231,7 +240,7 @@ class ProductController
 
     public function increaseQuantity($id)
     {
-        session_start();
+        SessionHelper::requireLogin();
         if (isset($_SESSION['cart'][$id])) {
             $_SESSION['cart'][$id]['quantity']++;
         }
@@ -240,7 +249,7 @@ class ProductController
 
     public function decreaseQuantity($id)
     {
-        session_start();
+        SessionHelper::requireLogin();
         if (isset($_SESSION['cart'][$id])) {
             $_SESSION['cart'][$id]['quantity']--;
             if ($_SESSION['cart'][$id]['quantity'] <= 0) {
@@ -252,14 +261,15 @@ class ProductController
 
     public function removeFromCart($id)
     {
-        session_start();
+        SessionHelper::requireLogin();
         unset($_SESSION['cart'][$id]);
         header('Location: /Product/cart');
     }
 
     public function clearCart()
     {
-        session_start();
+        SessionHelper::requireLogin();
+
         $_SESSION['cart'] = [];
         header('Location: /Product/cart');
     }
@@ -272,7 +282,7 @@ class ProductController
 
     public function checkout()
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        SessionHelper::requireLogin();
 
         $cart = $_SESSION['cart'] ?? [];
         if (empty($cart)) {
@@ -288,7 +298,7 @@ class ProductController
 
     public function placeOrder()
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        SessionHelper::requireLogin();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header('Location: /Product/checkout');
@@ -333,7 +343,7 @@ class ProductController
         }
 
         $orderModel = new OrderModel($this->db);
-        $order_id = $orderModel->createOrder($name, $phone, $email, $address, $payment);
+        $order_id = $orderModel->createOrder($name, $phone, $email, $address, $payment, SessionHelper::getUserId());
 
         foreach ($cart as $product_id => $item) {
             $orderModel->addOrderDetail(
@@ -350,7 +360,7 @@ class ProductController
 
     public function orderSuccess($id)
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        SessionHelper::requireLogin();
 
         $orderModel = new OrderModel($this->db);
         $order = $orderModel->getOrderById($id);
@@ -366,17 +376,41 @@ class ProductController
 
     public function myOrders()
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        SessionHelper::requireLogin();
 
         $orderModel = new OrderModel($this->db);
-        $orders = $orderModel->getAllOrders();
 
-        include 'app/views/product/my_orders.php';
+        if (SessionHelper::isAdmin()) {
+            // Admin: load dashboard + tất cả đơn hàng
+            $orders         = $orderModel->getAllOrdersWithTotal();
+            $stats          = $orderModel->getRevenueStats();
+            $revenueByMonth = $orderModel->getRevenueByMonth();
+            $revenueBycat   = $orderModel->getRevenueByCategory();
+            $topProducts    = $orderModel->getTopProducts(5);
+
+            // Chuẩn bị data chart cho view
+            $chartLabels  = [];
+            $chartRevenue = [];
+            $chartOrders  = [];
+            foreach ($revenueByMonth as $r) {
+                $chartLabels[]  = $r->label;
+                $chartRevenue[] = (float)$r->revenue;
+                $chartOrders[]  = (int)$r->order_count;
+            }
+
+            include 'app/views/product/admin_orders.php';
+        } else {
+            // User thường: chỉ xem đơn của mình
+            $orders = $orderModel->getOrdersByUserId(
+                SessionHelper::getUserId()
+            );
+            include 'app/views/product/my_orders.php';
+        }
     }
 
     public function orderDetail($id)
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        SessionHelper::requireLogin();
 
         $orderModel = new OrderModel($this->db);
         $order = $orderModel->getOrderById($id);
@@ -390,32 +424,55 @@ class ProductController
         include 'app/views/product/order_detail.php';
     }
 
-    public function updateOrderStatus($id)
-    {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+public function updateOrderStatus($id)
+{
+SessionHelper::requireAdmin();
 
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header('Location: /Product/orderDetail/' . (int)$id);
-            return;
-        }
 
-        $allowed = ['pending', 'processing', 'shipping', 'delivered', 'cancelled'];
-        $status = $_POST['status'] ?? 'pending';
-        if (!in_array($status, $allowed, true)) {
-            $status = 'pending';
-        }
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-        $orderModel = new OrderModel($this->db);
-        $updated = $orderModel->updateStatus((int)$id, $status);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: /Product/orderDetail/' . (int)$id);
+    return;
+}
 
-        if ($updated) {
-            $_SESSION['flash']['success'] = 'Đã cập nhật trạng thái đơn hàng.';
-        } else {
-            $_SESSION['flash']['success'] = 'Chưa cập nhật được trạng thái. Vui lòng thêm cột status cho bảng orders.';
-        }
-        header('Location: /Product/orderDetail/' . (int)$id);
-        exit;
-    }
+$allowed = [
+    'pending',
+    'processing',
+    'shipping',
+    'delivered',
+    'cancelled'
+];
+
+$status = $_POST['status'] ?? 'pending';
+
+if (!in_array($status, $allowed, true)) {
+    $status = 'pending';
+}
+
+$orderModel = new OrderModel($this->db);
+
+$updated = $orderModel->updateStatus(
+    (int)$id,
+    $status
+);
+
+if ($updated) {
+    $_SESSION['flash']['success']
+        = 'Đã cập nhật trạng thái đơn hàng.';
+} else {
+    $_SESSION['flash']['error']
+        = 'Không thể cập nhật trạng thái đơn hàng.';
+}
+
+header('Location: /Product/orderDetail/' . (int)$id);
+exit;
+
+
+}
+
 
     public function paymentQr()
     {

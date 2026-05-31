@@ -3,9 +3,7 @@ class SessionHelper
 {
     public static function start()
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        if (session_status() === PHP_SESSION_NONE) session_start();
     }
 
     public static function isLoggedIn()
@@ -44,7 +42,6 @@ class SessionHelper
         return $_SESSION['role'] ?? null;
     }
 
-    // Avatar: lấy từ session, tự đồng bộ từ DB nếu session chưa có
     public static function getAvatar()
     {
         self::start();
@@ -58,13 +55,13 @@ class SessionHelper
         $_SESSION['username'] = $user->username;
         $_SESSION['fullname'] = $user->fullname;
         $_SESSION['role']     = $user->role;
-        $_SESSION['avatar']   = $user->avatar ?? null; // lưu avatar khi login
+        $_SESSION['avatar']   = $user->avatar ?? null;
     }
 
     public static function updateAvatar($path)
     {
         self::start();
-        $_SESSION['avatar'] = $path; // cập nhật session ngay lập tức
+        $_SESSION['avatar'] = $path;
     }
 
     public static function logout()
@@ -74,18 +71,31 @@ class SessionHelper
         session_destroy();
     }
 
+    /* ── Yêu cầu đăng nhập ── */
     public static function requireLogin()
     {
+        self::start();
         if (!self::isLoggedIn()) {
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
+            self::setFlash('error', 'Vui lòng đăng nhập để tiếp tục.');
             header('Location: /Account/login');
             exit;
         }
     }
 
+    /* ── Yêu cầu quyền Admin ── */
     public static function requireAdmin()
     {
-        if (!self::isLoggedIn() || !self::isAdmin()) {
+        self::start();
+        if (!self::isLoggedIn()) {
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
+            self::setFlash('error', 'Vui lòng đăng nhập để tiếp tục.');
             header('Location: /Account/login');
+            exit;
+        }
+        if (!self::isAdmin()) {
+            self::setFlash('error', 'Bạn không có quyền thực hiện thao tác này.');
+            header('Location: /Product');
             exit;
         }
     }

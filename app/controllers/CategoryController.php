@@ -1,7 +1,7 @@
 <?php
-
-require_once('app/config/database.php');
-require_once('app/models/CategoryModel.php');
+require_once 'app/config/database.php';
+require_once 'app/models/CategoryModel.php';
+require_once 'app/helpers/SessionHelper.php';
 
 class CategoryController
 {
@@ -10,66 +10,82 @@ class CategoryController
 
     public function __construct()
     {
-        $this->db = (new Database())->getConnection();
+        $this->db            = (new Database())->getConnection();
         $this->categoryModel = new CategoryModel($this->db);
+        SessionHelper::start();
+    }
+
+    /* ── PUBLIC: xem danh mục ── */
+    public function index()
+    {
+        $categories = $this->categoryModel->getCategories();
+        include 'app/views/category/list.php';
     }
 
     public function list()
     {
         $categories = $this->categoryModel->getCategories();
-
         include 'app/views/category/list.php';
     }
 
+    /* ── ADMIN ONLY ── */
     public function add()
     {
+        SessionHelper::requireAdmin();
         include 'app/views/category/add.php';
     }
 
     public function save()
     {
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-
-            $name = $_POST['name'];
-            $description = $_POST['description'];
-
-            $this->categoryModel->addCategory($name, $description);
-
+        SessionHelper::requireAdmin();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $name = trim($_POST['name'] ?? '');
+            if (!$name) {
+                $errors = ['Tên danh mục không được để trống.'];
+                include 'app/views/category/add.php';
+                return;
+            }
+            $this->categoryModel->addCategory($name);
+            SessionHelper::setFlash('success', 'Thêm danh mục thành công!');
             header('Location: /Category/list');
         }
     }
 
     public function edit($id)
     {
+        SessionHelper::requireAdmin();
         $category = $this->categoryModel->getCategoryById($id);
-
+        if (!$category) {
+            SessionHelper::setFlash('error', 'Không tìm thấy danh mục.');
+            header('Location: /Category/list');
+            return;
+        }
         include 'app/views/category/edit.php';
     }
 
     public function update()
     {
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-
-            $id = $_POST['id'];
-            $name = $_POST['name'];
-            $description = $_POST['description'];
-
-            $this->categoryModel->updateCategory(
-                $id,
-                $name,
-                $description
-            );
-
+        SessionHelper::requireAdmin();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id   = $_POST['id'];
+            $name = trim($_POST['name'] ?? '');
+            if (!$name) {
+                $errors   = ['Tên danh mục không được để trống.'];
+                $category = $this->categoryModel->getCategoryById($id);
+                include 'app/views/category/edit.php';
+                return;
+            }
+            $this->categoryModel->updateCategory($id, $name);
+            SessionHelper::setFlash('success', 'Cập nhật danh mục thành công!');
             header('Location: /Category/list');
         }
     }
 
     public function delete($id)
     {
+        SessionHelper::requireAdmin();
         $this->categoryModel->deleteCategory($id);
-
+        SessionHelper::setFlash('success', 'Đã xóa danh mục.');
         header('Location: /Category/list');
     }
 }
-
-?>

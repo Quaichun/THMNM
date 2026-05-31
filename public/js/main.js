@@ -663,3 +663,176 @@ dropZone?.addEventListener('drop', e => {
   const file = e.dataTransfer.files[0];
   if (file) handleAvatarFile(file);
 });
+
+/* ════════════════════════════════════════════════════════════
+   DÁN ĐOẠN NÀY VÀO CUỐI file public/js/main.js
+════════════════════════════════════════════════════════════ */
+
+/* LOAD MORE — hiển thị 10 SP/trang, nút "Xem thêm" ở giữa */
+(function () {
+  const PER_PAGE = 10;
+
+  const grid     = document.querySelector('.st-product-grid');
+  const wrapEl   = document.getElementById('loadMoreWrap');
+  const noResult = document.getElementById('noResultMsg');
+
+  if (!grid || !wrapEl) return;
+
+  let shown = PER_PAGE;
+
+  const allCards    = () => Array.from(grid.querySelectorAll('.st-card'));
+  const notFiltered = () => allCards().filter(c => c.dataset.filteredOut !== '1');
+
+  function renderWidget() {
+    const total     = notFiltered().length;
+    const remaining = total - shown;
+
+    if (total === 0) {
+      wrapEl.innerHTML = '';
+      if (noResult) noResult.style.display = 'block';
+      return;
+    }
+    if (noResult) noResult.style.display = 'none';
+
+    const pct = Math.min(100, Math.round((Math.min(shown, total) / total) * 100));
+
+    if (remaining <= 0) {
+      wrapEl.innerHTML = `
+        <div class="st-load-more-wrap">
+          <div class="st-lm-progress">
+            <div class="st-lm-progress-fill" style="width:100%"></div>
+          </div>
+          <div class="st-lm-counter">
+            Đang hiển thị <strong>${total}</strong> / ${total} sản phẩm
+          </div>
+          <div class="st-lm-all-done">
+            <i class="fa-solid fa-circle-check"></i>
+            Bạn đã xem hết tất cả sản phẩm
+          </div>
+        </div>`;
+      return;
+    }
+
+    wrapEl.innerHTML = `
+      <div class="st-load-more-wrap">
+        <div class="st-lm-progress">
+          <div class="st-lm-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="st-lm-counter">
+          Đang hiển thị <strong>${Math.min(shown, total)}</strong> / ${total} sản phẩm
+        </div>
+        <button class="st-lm-btn" id="loadMoreBtn">
+          <span class="st-lm-btn-icon">
+            <i class="fa-solid fa-arrow-down"></i>
+          </span>
+          <span>Xem thêm ${Math.min(remaining, PER_PAGE)} sản phẩm</span>
+        </button>
+      </div>`;
+
+    document.getElementById('loadMoreBtn')?.addEventListener('click', () => {
+      const btn = document.getElementById('loadMoreBtn');
+      if (btn) {
+        btn.classList.add('loading');
+        btn.querySelector('span:last-child').textContent = 'Đang tải...';
+      }
+      setTimeout(() => { shown += PER_PAGE; applyVisibility(); }, 280);
+    });
+  }
+
+  function applyVisibility() {
+    let count = 0;
+    allCards().forEach(card => {
+      if (card.dataset.filteredOut === '1') return;
+      card.style.display = count < shown ? '' : 'none';
+      count++;
+    });
+    renderWidget();
+  }
+
+  function resetPagination() {
+    shown = PER_PAGE;
+    allCards().forEach(card => {
+      card.dataset.filteredOut = card.style.display === 'none' ? '1' : '0';
+    });
+    applyVisibility();
+  }
+
+  document.getElementById('btnPriceFilter')
+    ?.addEventListener('click', () => setTimeout(resetPagination, 50));
+  document.getElementById('sortProducts')
+    ?.addEventListener('change', () => setTimeout(resetPagination, 50));
+  document.querySelectorAll('input[name="cat-filter"]')
+    .forEach(r => r.addEventListener('change', () => setTimeout(resetPagination, 50)));
+
+  applyVisibility();
+})();
+
+
+/* === APPEND VÀO CUỐI main.js === */
+(function(){
+  const PER=10,grid=document.querySelector('.st-product-grid'),
+        wrap=document.getElementById('loadMoreWrap'),
+        noRes=document.getElementById('noResultMsg');
+  if(!grid||!wrap)return;
+  let shown=PER;
+  const all=()=>Array.from(grid.querySelectorAll('.st-card'));
+  const vis=()=>all().filter(c=>c.dataset.fo!=='1');
+
+  function render(){
+    const tot=vis().length,rem=tot-shown,pct=Math.min(100,Math.round(Math.min(shown,tot)/tot*100));
+    if(!tot){wrap.innerHTML='';if(noRes)noRes.style.display='block';return;}
+    if(noRes)noRes.style.display='none';
+
+    if(rem<=0){
+      wrap.innerHTML=`<div class="st-load-more-wrap">
+        <div class="st-lm-progress"><div class="st-lm-progress-fill" style="width:100%"></div></div>
+        <div class="st-lm-counter">Đang hiển thị <strong>${tot}</strong> / ${tot} sản phẩm</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;">
+          <div class="st-lm-all-done"><i class="fa-solid fa-circle-check"></i> Đã xem hết</div>
+          <button class="st-lm-btn" id="collapseBtn" style="padding:10px 24px;font-size:.88rem;">
+            <span class="st-lm-btn-icon"><i class="fa-solid fa-arrow-up"></i></span>
+            <span>Thu gọn</span>
+          </button>
+        </div>
+      </div>`;
+      document.getElementById('collapseBtn')?.addEventListener('click',()=>{
+        shown=PER;apply();
+        grid.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+      return;
+    }
+
+    wrap.innerHTML=`<div class="st-load-more-wrap">
+      <div class="st-lm-progress"><div class="st-lm-progress-fill" style="width:${pct}%"></div></div>
+      <div class="st-lm-counter">Đang hiển thị <strong>${Math.min(shown,tot)}</strong> / ${tot} sản phẩm</div>
+      <button class="st-lm-btn" id="lmBtn">
+        <span class="st-lm-btn-icon"><i class="fa-solid fa-arrow-down"></i></span>
+        <span>Xem thêm ${Math.min(rem,PER)} sản phẩm</span>
+      </button>
+    </div>`;
+    document.getElementById('lmBtn')?.addEventListener('click',()=>{
+      const b=document.getElementById('lmBtn');
+      if(b){b.classList.add('loading');b.querySelector('span:last-child').textContent='Đang tải...';}
+      setTimeout(()=>{shown+=PER;apply();},280);
+    });
+  }
+
+  function apply(){
+    let n=0;
+    all().forEach(c=>{if(c.dataset.fo==='1')return;c.style.display=n<shown?'':'none';n++;});
+    render();
+  }
+
+  function reset(){
+    shown=PER;
+    all().forEach(c=>{c.dataset.fo=c.style.display==='none'?'1':'0';});
+    apply();
+  }
+
+  document.getElementById('btnPriceFilter')?.addEventListener('click',()=>setTimeout(reset,50));
+  document.getElementById('sortProducts')?.addEventListener('change',()=>setTimeout(reset,50));
+  document.querySelectorAll('input[name="cat-filter"]').forEach(r=>r.addEventListener('change',()=>setTimeout(reset,50)));
+  apply();
+})();
+
+
