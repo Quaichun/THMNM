@@ -1,5 +1,17 @@
 <?php include 'app/views/shares/header.php'; ?>
 
+<?php if ($product): ?>
+<script>
+window.ST_CURRENT_PRODUCT = {
+  id:    <?php echo (int)$product->id; ?>,
+  name:  <?php echo json_encode(htmlspecialchars($product->name, ENT_QUOTES, 'UTF-8')); ?>,
+  price: <?php echo (int)$product->price; ?>,
+  image: <?php echo json_encode($product->image ?? ''); ?>,
+  cat:   <?php echo json_encode(htmlspecialchars($product->category_name ?? '', ENT_QUOTES, 'UTF-8')); ?>
+};
+</script>
+<?php endif; ?>
+
 <!-- Breadcrumb -->
 <div class="st-page-head fade-up">
   <div>
@@ -36,10 +48,14 @@
   <div class="st-detail-info">
 
     <?php if ($product->category_name): ?>
-      <span class="st-detail-cat"><?php echo htmlspecialchars($product->category_name, ENT_QUOTES, 'UTF-8'); ?></span>
+      <span class="st-detail-cat">
+        <?php echo htmlspecialchars($product->category_name, ENT_QUOTES, 'UTF-8'); ?>
+      </span>
     <?php endif; ?>
 
-    <h1 class="st-detail-name"><?php echo htmlspecialchars($product->name, ENT_QUOTES, 'UTF-8'); ?></h1>
+    <h1 class="st-detail-name">
+      <?php echo htmlspecialchars($product->name, ENT_QUOTES, 'UTF-8'); ?>
+    </h1>
 
     <div class="st-detail-price">
       <?php echo number_format($product->price, 0, ',', '.'); ?>₫
@@ -57,16 +73,30 @@
     </div>
 
     <!-- Actions -->
-    <div class="d-flex gap-3 align-items-center" style="margin-top:8px;">
-      <a href="/Product/addToCart/<?php echo $product->id; ?>" class="btn btn-primary btn-lg">
-        <i class="bi bi-cart-plus"></i> Thêm vào giỏ hàng
-      </a>
-      <a href="/Product/edit/<?php echo $product->id; ?>" class="btn btn-warning btn-lg">
-        <i class="bi bi-pencil"></i> Sửa
-      </a>
-      <a href="/Product/delete/<?php echo $product->id; ?>" class="btn btn-danger btn-sm btn-delete-confirm">
-        <i class="bi bi-trash"></i>
-      </a>
+    <div class="d-flex gap-3 align-items-center" style="margin-top:8px;flex-wrap:wrap;">
+
+      <?php if (SessionHelper::isLoggedIn()): ?>
+        <a href="/Product/addToCart/<?php echo $product->id; ?>"
+           class="btn btn-primary btn-lg">
+          <i class="bi bi-cart-plus"></i> Thêm vào giỏ hàng
+        </a>
+      <?php else: ?>
+        <a href="/Account/login" class="btn btn-primary btn-lg">
+          <i class="bi bi-box-arrow-in-right"></i> Đăng nhập để mua hàng
+        </a>
+      <?php endif; ?>
+
+      <?php if (SessionHelper::isAdmin()): ?>
+        <a href="/Product/edit/<?php echo $product->id; ?>"
+           class="btn btn-warning btn-lg">
+          <i class="bi bi-pencil"></i> Sửa
+        </a>
+        <a href="/Product/delete/<?php echo $product->id; ?>"
+           class="btn btn-danger btn-sm btn-delete-confirm">
+          <i class="bi bi-trash"></i>
+        </a>
+      <?php endif; ?>
+
     </div>
 
   </div>

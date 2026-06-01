@@ -52,19 +52,29 @@ $avatarUrl  = !empty($avatar)
     </li>
 
     <!-- Sản phẩm -->
-    <li class="st-dropdown">
-      <a href="#" class="st-dropdown-toggle" onclick="return false;">
-        📦 Sản phẩm <i class="bi bi-chevron-down st-chev"></i>
+<li class="st-dropdown">
+  <a href="#" class="st-dropdown-toggle" onclick="return false;">
+    📦 Sản phẩm <i class="bi bi-chevron-down st-chev"></i>
+  </a>
+
+  <ul class="st-dropdown-menu">
+
+    <li>
+      <a href="/Product/list">
+        <i class="bi bi-grid"></i> Danh sách sản phẩm
       </a>
-      <ul class="st-dropdown-menu">
-        <li><a href="/Product/list">
-          <i class="bi bi-grid"></i> Danh sách sản phẩm
-        </a></li>
-        <li><a href="/Category/list">
-          <i class="bi bi-tags"></i> Danh mục sản phẩm
-        </a></li>
-      </ul>
     </li>
+
+    <?php if (SessionHelper::isAdmin()): ?>
+    <li>
+      <a href="/Category/list">
+        <i class="bi bi-tags"></i> Danh mục sản phẩm
+      </a>
+    </li>
+    <?php endif; ?>
+
+  </ul>
+</li>
 
     <!-- Quản lý — chỉ admin -->
     <?php if ($isAdmin): ?>
@@ -82,30 +92,58 @@ $avatarUrl  = !empty($avatar)
         <li><a href="/Category/list">
           <i class="bi bi-pencil-square"></i> Quản lý danh mục
         </a></li>
+        <li><a href="/Account/users">
+          <i class="bi bi-people"></i> Quản lý người dùng
+        </a></li>
+        <li><a href="/Product/myOrders">
+          <i class="bi bi-graph-up-arrow"></i> Quản lý đơn hàng
+        </a></li>
       </ul>
     </li>
     <?php endif; ?>
 
-    <!-- Mua hàng -->
-    <li class="st-dropdown">
-      <a href="#" class="st-dropdown-toggle" onclick="return false;">
-        🛒 Mua hàng <i class="bi bi-chevron-down st-chev"></i>
+<!-- Mua hàng -->
+<li class="st-dropdown">
+  <a href="#" class="st-dropdown-toggle" onclick="return false;">
+    🛒 Mua hàng <i class="bi bi-chevron-down st-chev"></i>
+  </a>
+
+  <ul class="st-dropdown-menu">
+
+    <li>
+      <a href="/Product/cart">
+        <i class="bi bi-cart3"></i> Giỏ hàng
+
+        <?php if ($cartCount > 0): ?>
+          <span class="st-dd-badge">
+            <?php echo $cartCount; ?>
+          </span>
+        <?php endif; ?>
       </a>
-      <ul class="st-dropdown-menu">
-        <li><a href="/Product/cart">
-          <i class="bi bi-cart3"></i> Giỏ hàng
-          <?php if ($cartCount > 0): ?>
-            <span class="st-dd-badge"><?php echo $cartCount; ?></span>
-          <?php endif; ?>
-        </a></li>
-        <li><a href="/Product/checkout">
-          <i class="bi bi-bag-check"></i> Thanh toán
-        </a></li>
-        <li><a href="/Product/myOrders">
-          <i class="bi bi-receipt"></i> Đơn hàng của tôi
-        </a></li>
-      </ul>
     </li>
+
+    <?php if (SessionHelper::isLoggedIn()): ?>
+
+      <li>
+        <a href="/Product/checkout">
+          <i class="bi bi-bag-check"></i> Thanh toán
+        </a>
+      </li>
+
+      <!-- Trong dropdown Mua hàng, thay dòng myOrders -->
+    <li>
+      <a href="/Product/myOrders">
+        <i class="bi bi-<?php echo SessionHelper::isAdmin()
+          ? 'graph-up-arrow' : 'receipt'; ?>"></i>
+        <?php echo SessionHelper::isAdmin()
+          ? 'Quản lý đơn hàng' : 'Đơn hàng của tôi'; ?>
+        </a>
+    </li>
+
+    <?php endif; ?>
+
+  </ul>
+</li>
 
     <!-- Tài khoản -->
     <li class="st-dropdown">
@@ -206,16 +244,17 @@ $avatarUrl  = !empty($avatar)
 
 </nav>
 
-<!-- Flash toast toàn cục -->
-<?php $globalFlash = SessionHelper::getFlash('success'); ?>
-<?php if ($globalFlash): ?>
-<div id="globalToast" class="st-toast show">
-  ✅ <?php echo htmlspecialchars($globalFlash, ENT_QUOTES, 'UTF-8'); ?>
+<!-- Thêm vào ngay sau thẻ <nav> mở, hiện flash error -->
+<?php $flashError = SessionHelper::getFlash('error'); ?>
+<?php if ($flashError): ?>
+<div id="flashError" class="st-flash-error">
+  ⚠️ <?php echo htmlspecialchars($flashError, ENT_QUOTES, 'UTF-8'); ?>
 </div>
 <script>
   setTimeout(() => {
-    const t = document.getElementById('globalToast');
-    if (t) t.classList.remove('show');
-  }, 3000);
+    const el = document.getElementById('flashError');
+    if (el) el.style.opacity = '0';
+    setTimeout(() => el?.remove(), 400);
+  }, 3500);
 </script>
 <?php endif; ?>

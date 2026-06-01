@@ -86,6 +86,7 @@ if (!isset($statusMap[$currentStatus])) $currentStatus = 'pending';
         <div style="display:inline-block;padding:7px 12px;border-radius:999px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;color:<?php echo $statusMap[$currentStatus]['color']; ?>;margin-bottom:14px">
           <?php echo $statusMap[$currentStatus]['label']; ?>
         </div>
+        <?php if (SessionHelper::isAdmin()): ?>
         <form method="POST" action="/Product/updateOrderStatus/<?php echo (int)$order->id; ?>">
           <label class="form-label">Cập nhật trạng thái</label>
           <select name="status" class="form-control" style="margin-bottom:14px" required>
@@ -99,6 +100,11 @@ if (!isset($statusMap[$currentStatus])) $currentStatus = 'pending';
             <i class="bi bi-check2-circle"></i> Lưu trạng thái
           </button>
         </form>
+        <?php else: ?>
+          <div style="font-size:.9rem;color:var(--text-muted)">
+            Bạn chỉ có quyền xem trạng thái giao hàng của đơn này.
+          </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>

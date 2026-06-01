@@ -3,6 +3,7 @@ require_once 'app/helpers/SessionHelper.php';
 SessionHelper::requireLogin();
 $flash      = SessionHelper::getFlash('success');
 $flashError = SessionHelper::getFlash('error');
+$verifyLink = SessionHelper::getFlash('verify_link');
 $avatarUrl  = !empty($user->avatar)
     ? '/' . htmlspecialchars($user->avatar, ENT_QUOTES, 'UTF-8')
     : null;
@@ -24,6 +25,18 @@ $avatarUrl  = !empty($user->avatar)
   <?php if ($flash): ?>
     <div class="alert alert-success fade-up">
       ✅ <?php echo htmlspecialchars($flash, ENT_QUOTES, 'UTF-8'); ?>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($verifyLink)): ?>
+    <div class="alert alert-info fade-up">
+      <div class="mb-2">Email mới chưa xác thực. Bạn có thể xác thực ngay:</div>
+      <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($verifyLink, ENT_QUOTES, 'UTF-8'); ?>">
+        <i class="bi bi-patch-check"></i> Xác thực email
+      </a>
+      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="navigator.clipboard.writeText('<?php echo htmlspecialchars($verifyLink, ENT_QUOTES, 'UTF-8'); ?>')">
+        <i class="bi bi-clipboard"></i> Sao chép link
+      </button>
     </div>
   <?php endif; ?>
 
@@ -126,7 +139,7 @@ $avatarUrl  = !empty($user->avatar)
       <div class="st-form-card">
         <div class="st-form-header">
           <h1>📋 Thông tin cá nhân</h1>
-          <p>Cập nhật họ tên và tên đăng nhập của bạn</p>
+          <p>Cập nhật họ tên, tên đăng nhập và email của bạn</p>
         </div>
         <div class="st-form-body">
           <form method="POST" action="/Account/updateProfile">
@@ -151,6 +164,29 @@ $avatarUrl  = !empty($user->avatar)
                        value="<?php echo htmlspecialchars($user->username, ENT_QUOTES, 'UTF-8'); ?>"
                        required>
               </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Email *</label>
+              <div class="st-input-wrap">
+                <i class="bi bi-envelope st-input-icon"></i>
+                <input type="email" name="email"
+                       class="form-control st-input-icon-pad"
+                       value="<?php echo htmlspecialchars($user->email ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                       required>
+              </div>
+              <small style="color:var(--text-muted)">
+                <?php if (!empty($user->email_verified_at)): ?>✅ Email đã xác thực<?php else: ?>⚠️ Email chưa xác thực<?php endif; ?>
+              </small>
+              <?php if (empty($user->email_verified_at)): ?>
+                <div style="margin-top:10px">
+                  <form method="POST" action="/Account/resendVerifyEmail" style="display:inline">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                      <i class="bi bi-arrow-repeat"></i> G&#7917;i l&#7841;i x&#225;c th&#7921;c
+                    </button>
+                  </form>
+                </div>
+              <?php endif; ?>
             </div>
 
             <div class="mb-4">
