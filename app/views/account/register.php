@@ -44,6 +44,17 @@
       </div>
 
       <div class="st-input-group">
+        <label class="form-label">Email *</label>
+        <div class="st-input-wrap">
+          <i class="bi bi-envelope st-input-icon"></i>
+          <input type="email" name="email" class="form-control st-input-icon-pad"
+                 placeholder="email@domain.com"
+                 value="<?php echo htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                 autocomplete="email" required>
+        </div>
+      </div>
+
+      <div class="st-input-group">
         <label class="form-label">Mật khẩu *</label>
         <div class="st-input-wrap">
           <i class="bi bi-lock st-input-icon"></i>

@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
--- Máy chủ:                      127.0.0.1
+-- Host:                         127.0.0.1
 -- Server version:               8.0.30 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Phiên bản:           12.1.0.6537
+-- HeidiSQL Version:             12.1.0.6537
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -24,17 +24,29 @@ CREATE TABLE IF NOT EXISTS `account` (
   `id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(255) NOT NULL,
   `fullname` varchar(255) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
   `password` varchar(255) NOT NULL,
   `role` enum('admin','user') DEFAULT 'user',
+  `status` enum('active','locked') NOT NULL DEFAULT 'active',
   `avatar` varchar(255) DEFAULT NULL,
+  `remember_token` varchar(255) DEFAULT NULL,
+  `remember_expires_at` datetime DEFAULT NULL,
+  `reset_token` varchar(255) DEFAULT NULL,
+  `reset_expires_at` datetime DEFAULT NULL,
+  `email_verify_token` varchar(255) DEFAULT NULL,
+  `email_verified_at` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `uq_account_email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table my_store.account: ~2 rows (approximately)
-INSERT INTO `account` (`id`, `username`, `fullname`, `password`, `role`, `avatar`) VALUES
-	(1, 'user123', 'Nguyễn Hoài Trung', '$2y$10$YjbSmSEV50U5bVPSbMu2zex2w2fKKAcQvDWqqigTFdTZKzE8.fFEG', 'user', 'uploads/avatars/avatar_1_1779633062.jpg'),
-	(2, 'admin@gmail.com', 'NTT', '$2y$10$5swG6r01qgzPVhkjaWXwK.2hIkkcY7Y8uuWbwKXLcmYhsnwSe/1UO', 'admin', NULL);
+-- Dumping data for table my_store.account: ~3 rows (approximately)
+INSERT INTO `account` (`id`, `username`, `fullname`, `email`, `password`, `role`, `status`, `avatar`, `remember_token`, `remember_expires_at`, `reset_token`, `reset_expires_at`, `email_verify_token`, `email_verified_at`, `created_at`) VALUES
+	(1, 'user1', 'Nguyễn Hoài Trung', 'user1@gmail.com', '$2y$10$b0kE1xonN1sOWt/TC8St/ezRM6GymFWxjDcMsqW5L7mHm5qyifHW.', 'user', 'active', 'uploads/avatars/avatar_1_1779633062.jpg', NULL, NULL, 'f734d21a4fc20753c50d948a701d84be31ff710aca1505fcff7c76e8830efd90', '2026-06-01 11:20:50', NULL, '2026-06-01 10:44:55', '2026-06-01 01:37:15'),
+	(2, 'admin', 'NTT', 'admin@gmail.com', '$2y$10$5swG6r01qgzPVhkjaWXwK.2hIkkcY7Y8uuWbwKXLcmYhsnwSe/1UO', 'admin', 'active', 'uploads/avatars/avatar_2_1780281026.jpg', NULL, NULL, NULL, NULL, NULL, '2026-06-01 10:46:39', '2026-06-01 01:37:15'),
+	(3, 'user2', 'user2', 'user2@gmail.com', '$2y$10$ot5DajYEUbeHxXVV.Qv3se.SPCKqMO9Ms7iye.7X4OCG/M0ZdtNPa', 'user', 'active', NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-01 09:24:41', '2026-06-01 02:24:21'),
+	(4, 'user3', 'user3', 'user3@gmail.com', '$2y$10$QEreu63Oiv2GeJDpABFgReC8jkIF9w6fSnQ8C.Ehtfld004ZcwZPS', 'user', 'active', NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-01 10:51:50', '2026-06-01 03:51:47');
 
 -- Dumping structure for table my_store.category
 CREATE TABLE IF NOT EXISTS `category` (
@@ -66,12 +78,13 @@ CREATE TABLE IF NOT EXISTS `orders` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `account` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table my_store.orders: ~1 rows (approximately)
+-- Dumping data for table my_store.orders: ~2 rows (approximately)
 INSERT INTO `orders` (`id`, `name`, `phone`, `email`, `payment_method`, `address`, `status`, `created_at`, `user_id`) VALUES
 	(1, 'Nguyễn Hoài Trung', '0125698764', NULL, 'cod', 'Thủ đức', 'delivered', '2026-05-23 14:26:09', NULL),
-	(2, 'Nguyễn Hoài Trung', '0125698764', 'tn@gmail.com', 'cod', 'Thu Duc', 'pending', '2026-05-31 17:21:19', 1);
+	(2, 'Nguyễn Hoài Trung', '0125698764', 'tn@gmail.com', 'cod', 'Thu Duc', 'delivered', '2026-05-31 17:21:19', 1),
+	(3, 'Nguyen Van 1', '0216598745', 'user1@gmail.com', 'cod', 'Thu Duc', 'pending', '2026-06-01 03:45:19', 1);
 
 -- Dumping structure for table my_store.order_details
 CREATE TABLE IF NOT EXISTS `order_details` (
@@ -83,14 +96,15 @@ CREATE TABLE IF NOT EXISTS `order_details` (
   PRIMARY KEY (`id`),
   KEY `order_id` (`order_id`),
   CONSTRAINT `order_details_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table my_store.order_details: ~2 rows (approximately)
+-- Dumping data for table my_store.order_details: ~0 rows (approximately)
 INSERT INTO `order_details` (`id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
 	(1, 1, 3, 1, 20000000.00),
 	(2, 1, 5, 1, 41000000.00),
 	(3, 1, 8, 1, 27000000.00),
-	(4, 2, 5, 1, 41000000.00);
+	(4, 2, 5, 1, 41000000.00),
+	(5, 3, 5, 1, 41000000.00);
 
 -- Dumping structure for table my_store.product
 CREATE TABLE IF NOT EXISTS `product` (
@@ -105,7 +119,7 @@ CREATE TABLE IF NOT EXISTS `product` (
   CONSTRAINT `product_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `category` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table my_store.product: ~7 rows (approximately)
+-- Dumping data for table my_store.product: ~17 rows (approximately)
 INSERT INTO `product` (`id`, `name`, `description`, `price`, `image`, `category_id`) VALUES
 	(2, 'IPhone 15 pro max', 'tttt', 28000000.00, 'uploads/iphone15pr.jpg', 1),
 	(3, 'Macbook', 'jj', 20000000.00, 'uploads/macbook.jpg', 2),

@@ -95,6 +95,28 @@ class OrderModel
     return $stmt->fetchAll(PDO::FETCH_OBJ);
 }
 
+    public function getPurchasedProductsByUserId($user_id)
+    {
+        $sql = "SELECT
+                    p.id,
+                    p.name,
+                    p.image,
+                    od.price,
+                    MAX(o.created_at) AS last_order_at
+                FROM orders o
+                INNER JOIN order_details od ON od.order_id = o.id
+                INNER JOIN product p ON p.id = od.product_id
+                WHERE o.user_id = :user_id
+                GROUP BY p.id, p.name, p.image, od.price
+                ORDER BY last_order_at DESC
+                LIMIT 30";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_OBJ);
+    }
+
     public function addOrderDetail($order_id, $product_id, $quantity, $price)
     {
         $sql = "INSERT INTO order_details (order_id, product_id, quantity, price)

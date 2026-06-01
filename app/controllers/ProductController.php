@@ -4,6 +4,7 @@ require_once('app/config/database.php');
 require_once('app/models/ProductModel.php');
 require_once('app/models/CategoryModel.php');
 require_once('app/models/OrderModel.php');
+require_once('app/models/AccountModel.php');
 require_once('app/helpers/SessionHelper.php');
 
 class ProductController
@@ -17,6 +18,7 @@ class ProductController
         $this->productModel = new ProductModel($this->db);
         $this->orderModel = new OrderModel($this->db);
         SessionHelper::start();
+        SessionHelper::tryRememberLogin($this->db);
     }
 
     public function index()
@@ -311,6 +313,19 @@ class ProductController
             return;
         }
 
+        $accountModel = new AccountModel($this->db);
+        $currentUser = $accountModel->findById(SessionHelper::getUserId());
+        if (!$currentUser || empty($currentUser->email_verified_at)) {
+            SessionHelper::setFlash('error', 'Ban can xac thuc email truoc khi dat hang.');
+            $verifyToken = bin2hex(random_bytes(32));
+            if ($currentUser) {
+                $accountModel->saveEmailVerifyToken((int)$currentUser->id, hash('sha256', $verifyToken));
+                SessionHelper::setFlash('verify_link', '/Account/verifyEmail?token=' . $verifyToken);
+            }
+            header('Location: /Account/profile?tab=info');
+            return;
+        }
+
         $name = trim($_POST['name'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
         $email = trim($_POST['email'] ?? '');
@@ -404,6 +419,29 @@ class ProductController
             $orders = $orderModel->getOrdersByUserId(
                 SessionHelper::getUserId()
             );
+            $historyProducts = $orderModel->getPurchasedProductsByUserId(
+                SessionHelper::getUserId()
+            );
+            $historyOrders = [];
+            foreach ($orders as $orderItem) {
+                $details = $orderModel->getOrderDetails($orderItem->id);
+                $totalAmount = 0;
+                $totalQty = 0;
+                foreach ($details as $detail) {
+                    $totalAmount += ((float)$detail->price * (int)$detail->quantity);
+                    $totalQty += (int)$detail->quantity;
+                }
+                $historyOrders[] = (object)[
+                    'order' => $orderItem,
+                    'details' => $details,
+                    'firstItem' => $details[0] ?? null,
+                    'totalAmount' => $totalAmount,
+                    'totalQty' => $totalQty
+                ];
+            }
+            $deliveredOrders = array_values(array_filter($orders, function ($o) {
+                return ($o->status ?? '') === 'delivered';
+            }));
             include 'app/views/product/my_orders.php';
         }
     }
@@ -417,6 +455,11 @@ class ProductController
         $orderDetails = $orderModel->getOrderDetails($id);
 
         if (!$order) {
+            header('Location: /Product/myOrders');
+            return;
+        }
+        if (!SessionHelper::isAdmin() && (int)($order->user_id ?? 0) !== (int)SessionHelper::getUserId()) {
+            SessionHelper::setFlash('error', 'Bạn không có quyền xem đơn hàng này.');
             header('Location: /Product/myOrders');
             return;
         }

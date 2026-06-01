@@ -13,6 +13,7 @@ class CategoryController
         $this->db            = (new Database())->getConnection();
         $this->categoryModel = new CategoryModel($this->db);
         SessionHelper::start();
+        SessionHelper::tryRememberLogin($this->db);
     }
 
     /* ── PUBLIC: xem danh mục ── */

@@ -1,6 +1,7 @@
 <?php
 require_once 'app/helpers/SessionHelper.php';
 $flash = SessionHelper::getFlash('success');
+$verifyLink = SessionHelper::getFlash('verify_link');
 ?>
 <?php include 'app/views/shares/header.php'; ?>
 
@@ -15,6 +16,18 @@ $flash = SessionHelper::getFlash('success');
 
     <?php if ($flash): ?>
       <div class="alert alert-success"><?php echo htmlspecialchars($flash, ENT_QUOTES, 'UTF-8'); ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($verifyLink)): ?>
+      <div class="alert alert-info">
+        <div class="mb-2">Bạn có thể xác thực email bằng một trong hai cách:</div>
+        <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($verifyLink, ENT_QUOTES, 'UTF-8'); ?>">
+          <i class="bi bi-patch-check"></i> Xác thực ngay
+        </a>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="navigator.clipboard.writeText('<?php echo htmlspecialchars($verifyLink, ENT_QUOTES, 'UTF-8'); ?>')">
+          <i class="bi bi-clipboard"></i> Sao chép link
+        </button>
+      </div>
     <?php endif; ?>
 
     <?php if (!empty($errors)): ?>
@@ -52,6 +65,14 @@ $flash = SessionHelper::getFlash('success');
             <i class="bi bi-eye"></i>
           </button>
         </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="form-check m-0">
+          <input class="form-check-input" type="checkbox" value="1" id="rememberMe" name="remember_me">
+          <label class="form-check-label" for="rememberMe">Ghi nhớ đăng nhập</label>
+        </div>
+        <a href="/Account/forgotPassword" style="font-size:.9rem">Quên mật khẩu?</a>
       </div>
 
       <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">

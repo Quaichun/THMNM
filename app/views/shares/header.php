@@ -92,6 +92,12 @@ $avatarUrl  = !empty($avatar)
         <li><a href="/Category/list">
           <i class="bi bi-pencil-square"></i> Quản lý danh mục
         </a></li>
+        <li><a href="/Account/users">
+          <i class="bi bi-people"></i> Quản lý người dùng
+        </a></li>
+        <li><a href="/Product/myOrders">
+          <i class="bi bi-graph-up-arrow"></i> Quản lý đơn hàng
+        </a></li>
       </ul>
     </li>
     <?php endif; ?>
@@ -125,14 +131,14 @@ $avatarUrl  = !empty($avatar)
       </li>
 
       <!-- Trong dropdown Mua hàng, thay dòng myOrders -->
-<li>
-  <a href="/Product/myOrders">
-    <i class="bi bi-<?php echo SessionHelper::isAdmin()
-        ? 'graph-up-arrow' : 'receipt'; ?>"></i>
-    <?php echo SessionHelper::isAdmin()
-        ? 'Quản lý đơn hàng' : 'Đơn hàng của tôi'; ?>
-  </a>
-</li>
+    <li>
+      <a href="/Product/myOrders">
+        <i class="bi bi-<?php echo SessionHelper::isAdmin()
+          ? 'graph-up-arrow' : 'receipt'; ?>"></i>
+        <?php echo SessionHelper::isAdmin()
+          ? 'Quản lý đơn hàng' : 'Đơn hàng của tôi'; ?>
+        </a>
+    </li>
 
     <?php endif; ?>
 

@@ -146,9 +146,12 @@ $bannerConfigs  = [
     </div>
 
     <hr style="margin:20px 0;border-color:var(--border);">
-    <a href="/Product/add" class="btn btn-success w-100">
-      <i class="bi bi-plus-circle"></i> Thêm sản phẩm
-    </a>
+
+<?php if (SessionHelper::isAdmin()): ?>
+<a href="/Product/add" class="btn btn-success w-100">
+    <i class="bi bi-plus-circle"></i> Thêm sản phẩm
+</a>
+<?php endif; ?>
   </aside>
 
   <!-- ─── Main content ─── -->
@@ -169,7 +172,11 @@ $bannerConfigs  = [
         <div class="st-empty-icon">📦</div>
         <h3>Chưa có sản phẩm nào</h3>
         <p>Hãy thêm sản phẩm đầu tiên của bạn!</p>
-        <a href="/Product/add" class="btn btn-primary mt-3">+ Thêm sản phẩm</a>
+        <?php if (SessionHelper::isAdmin()): ?>
+          <a href="/Product/add" class="btn btn-success w-100">
+            <i class="bi bi-plus-circle"></i>+ Thêm sản phẩm
+          </a>
+        <?php endif; ?>
       </div>
     <?php else: ?>
 
