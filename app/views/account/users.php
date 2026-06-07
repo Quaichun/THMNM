@@ -136,14 +136,21 @@ foreach ($users as $u) {
             </td>
             <td><div class="st-td"><?php echo !empty($u->created_at) ? date('d/m/Y', strtotime($u->created_at)) : '-'; ?></div></td>
             <td>
-              <div class="st-td">
-                <form method="POST" action="/Account/toggleUserStatus" onsubmit="return confirm('Xác nhận thao tác?')">
+              <div class="st-td" style="display: flex; gap: 5px;">
+                <a href="/Account/editUser/<?php echo (int)$u->id; ?>" class="btn btn-sm btn-warning" title="Sửa">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                
+                <form method="POST" action="/Account/toggleUserStatus" style="display: inline-block;">
                   <input type="hidden" name="id" value="<?php echo (int)$u->id; ?>">
-                  <button class="btn btn-sm <?php echo $status === 'active' ? 'btn-danger' : 'btn-success'; ?>" type="submit">
+                  <button class="btn btn-sm <?php echo $status === 'active' ? 'btn-outline-danger' : 'btn-outline-success'; ?>" type="submit" title="<?php echo $status === 'active' ? 'Khóa' : 'Mở khóa'; ?>">
                     <i class="bi <?php echo $status === 'active' ? 'bi-lock' : 'bi-unlock'; ?>"></i>
-                    <?php echo $status === 'active' ? 'Khóa' : 'Mở khóa'; ?>
                   </button>
                 </form>
+
+                <a href="/Account/deleteUser/<?php echo (int)$u->id; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Bạn có chắc chắn muốn xóa người dùng này? Thao tác này không thể hoàn tác!')" title="Xóa">
+                  <i class="bi bi-trash"></i>
+                </a>
               </div>
             </td>
           </tr>

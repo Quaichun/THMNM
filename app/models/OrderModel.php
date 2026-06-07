@@ -231,24 +231,44 @@ class OrderModel
     }
 
     public function getRevenueByMonth()
-{
-    $sql = "SELECT
-                DATE_FORMAT(o.created_at, '%Y-%m')   AS month,
-                DATE_FORMAT(o.created_at, '%m/%Y')   AS label,
-                COALESCE(SUM(od.price * od.quantity), 0) AS revenue,
-                COUNT(DISTINCT o.id)                 AS order_count
-            FROM orders o
-            LEFT JOIN order_details od ON od.order_id = o.id
-            WHERE o.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-            GROUP BY
-                DATE_FORMAT(o.created_at, '%Y-%m'),
-                DATE_FORMAT(o.created_at, '%m/%Y')
-            ORDER BY month ASC";
+    {
+        $sql = "SELECT
+                    DATE_FORMAT(o.created_at, '%Y-%m')   AS month,
+                    DATE_FORMAT(o.created_at, '%m/%Y')   AS label,
+                    COALESCE(SUM(od.price * od.quantity), 0) AS revenue,
+                    COUNT(DISTINCT o.id)                 AS order_count
+                FROM orders o
+                LEFT JOIN order_details od ON od.order_id = o.id
+                WHERE o.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                GROUP BY
+                    DATE_FORMAT(o.created_at, '%Y-%m'),
+                    DATE_FORMAT(o.created_at, '%m/%Y')
+                ORDER BY month ASC";
 
-    $stmt = $this->conn->prepare($sql);
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_OBJ);
-}
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_OBJ);
+    }
+
+    public function getRevenueByDay()
+    {
+        $sql = "SELECT
+                    DATE(o.created_at)                   AS day,
+                    DATE_FORMAT(o.created_at, '%d/%m')    AS label,
+                    COALESCE(SUM(od.price * od.quantity), 0) AS revenue,
+                    COUNT(DISTINCT o.id)                 AS order_count
+                FROM orders o
+                LEFT JOIN order_details od ON od.order_id = o.id
+                WHERE o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                GROUP BY 
+                    DATE(o.created_at),
+                    DATE_FORMAT(o.created_at, '%d/%m')
+                ORDER BY day ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_OBJ);
+    }
 
 public function getRevenueByCategory()
 {

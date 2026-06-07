@@ -7,7 +7,7 @@
 <footer class="st-footer">
   <div class="st-footer-top">
     <div class="st-container">
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1.3fr;gap:40px;flex-wrap:wrap;">
+      <div class="st-footer-grid">
 
         <!-- Brand -->
         <div class="st-footer-brand">

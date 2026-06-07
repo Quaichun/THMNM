@@ -102,13 +102,56 @@
                 </div>
               <?php endif; ?>
 
-              <div class="st-img-overlay">
-                <span style="color:var(--primary);font-weight:700;font-size:.9rem;">🔄 Thay đổi ảnh</span>
-              </div>
             </div>
           </div>
 
+          <!-- Technical Specs -->
+          <div style="grid-column:1/-1; margin-top: 10px;">
+            <label class="form-label">
+              <i class="bi bi-cpu" style="color:var(--primary)"></i> Thông số kỹ thuật
+            </label>
+            <div id="specsContainer">
+              <?php if (!empty($specs)): ?>
+                <?php foreach ($specs as $index => $spec): ?>
+                  <div class="spec-row" style="display:flex; gap:10px; margin-bottom:10px;">
+                    <input type="text" name="specs[<?php echo $index; ?>][name]" 
+                           value="<?php echo htmlspecialchars($spec->spec_name, ENT_QUOTES, 'UTF-8'); ?>" class="form-control">
+                    <input type="text" name="specs[<?php echo $index; ?>][value]" 
+                           value="<?php echo htmlspecialchars($spec->spec_value, ENT_QUOTES, 'UTF-8'); ?>" class="form-control">
+                    <button type="button" class="btn btn-outline-danger remove-spec" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>
+                  </div>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <div class="spec-row" style="display:flex; gap:10px; margin-bottom:10px;">
+                  <input type="text" name="specs[0][name]" placeholder="Tên thông số (VD: RAM)" class="form-control">
+                  <input type="text" name="specs[0][value]" placeholder="Giá trị (VD: 8GB)" class="form-control">
+                  <button type="button" class="btn btn-outline-danger remove-spec" onclick="this.parentElement.remove()" style="display:none;"><i class="bi bi-trash"></i></button>
+                </div>
+              <?php endif; ?>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-success" id="addSpecBtn"><i class="bi bi-plus"></i> Thêm thông số</button>
+          </div>
+
         </div><!-- /grid -->
+
+        <script>
+          let specIndex = <?php echo !empty($specs) ? count($specs) : 1; ?>;
+          document.getElementById('addSpecBtn').onclick = function() {
+            const container = document.getElementById('specsContainer');
+            const row = document.createElement('div');
+            row.className = 'spec-row';
+            row.style.display = 'flex';
+            row.style.gap = '10px';
+            row.style.marginBottom = '10px';
+            row.innerHTML = `
+                <input type="text" name="specs[${specIndex}][name]" placeholder="Tên thông số" class="form-control">
+                <input type="text" name="specs[${specIndex}][value]" placeholder="Giá trị" class="form-control">
+                <button type="button" class="btn btn-outline-danger remove-spec" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>
+            `;
+            container.appendChild(row);
+            specIndex++;
+          };
+        </script>
 
         <div class="st-form-actions" style="margin-top:24px;">
           <button type="submit" class="btn btn-warning btn-lg">

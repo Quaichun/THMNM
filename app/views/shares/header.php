@@ -25,6 +25,12 @@ $avatarUrl  = !empty($avatar)
   <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <link rel="stylesheet" href="/public/css/style.css">
+  <script>
+    window.ST_USER = {
+      isLoggedIn: <?php echo $isLoggedIn ? 'true' : 'false'; ?>,
+      isAdmin: <?php echo $isAdmin ? 'true' : 'false'; ?>
+    };
+  </script>
 </head>
 <body>
 
@@ -244,6 +250,9 @@ $avatarUrl  = !empty($avatar)
 
 </nav>
 
+<!-- Mobile Backdrop overlay -->
+<div class="st-nav-backdrop" id="navBackdrop"></div>
+
 <!-- Thêm vào ngay sau thẻ <nav> mở, hiện flash error -->
 <?php $flashError = SessionHelper::getFlash('error'); ?>
 <?php if ($flashError): ?>
@@ -257,4 +266,54 @@ $avatarUrl  = !empty($avatar)
     setTimeout(() => el?.remove(), 400);
   }, 3500);
 </script>
+<?php endif; ?>
+
+<!-- DEV TOOL: Mock Inbox (Giả lập nhận Email) -->
+<?php if (!empty($_SESSION['mock_inbox'])): ?>
+<div id="mockInbox" class="st-mock-inbox">
+    <div class="mock-header">
+        <span><i class="bi bi-envelope-paper"></i> Developer Inbox (Simulated)</span>
+        <button onclick="document.getElementById('mockInbox').remove()">×</button>
+    </div>
+    <div class="mock-list">
+        <?php foreach (array_reverse($_SESSION['mock_inbox']) as $mail): ?>
+        <div class="mock-item">
+            <div class="mock-meta">To: <b><?php echo $mail['to']; ?></b> • <?php echo $mail['time']; ?></div>
+            <div class="mock-subj"><?php echo $mail['subject']; ?></div>
+            <button class="btn-view-mail" onclick="showMailBody(this)">Xem nội dung Email</button>
+            <div class="mock-body" style="display:none;"><?php echo $mail['body']; ?></div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+<script>
+function showMailBody(btn) {
+    const body = btn.nextElementSibling;
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? 'block' : 'none';
+    btn.innerText = isHidden ? 'Đóng Email' : 'Xem nội dung Email';
+}
+</script>
+<style>
+.st-mock-inbox {
+    position: fixed; bottom: 20px; right: 20px; width: 320px; 
+    background: #fff; border: 1px solid #1a56db; border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 10000; overflow: hidden;
+}
+.mock-header {
+    background: #1a56db; color: #fff; padding: 10px 15px; 
+    display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600;
+}
+.mock-header button { background: none; border: none; color: #fff; cursor: pointer; font-size: 1.2rem; }
+.mock-list { max-height: 400px; overflow-y: auto; }
+.mock-item { padding: 12px; border-bottom: 1px solid #eee; }
+.mock-item:last-child { border-bottom: none; }
+.mock-meta { font-size: 0.75rem; color: #666; margin-bottom: 4px; }
+.mock-subj { font-size: 0.85rem; font-weight: 700; color: #1a56db; margin-bottom: 8px; }
+.btn-view-mail { 
+    font-size: 0.75rem; background: #f0f7ff; border: 1px solid #1a56db; color: #1a56db; 
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; 
+}
+.mock-body { margin-top: 15px; border: 1px solid #eee; padding: 10px; border-radius: 8px; zoom: 0.6; }
+</style>
 <?php endif; ?>

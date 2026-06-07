@@ -100,23 +100,33 @@ $bannerConfigs  = [
       <li>
         <label><input type="radio" name="cat-filter" value="all" checked> Tất cả</label>
       </li>
-      <?php
-        $cats = [];
-        foreach ($products as $p) {
-          if ($p->category_name && !in_array($p->category_name, $cats))
-            $cats[] = $p->category_name;
-        }
-        foreach ($cats as $cat):
-      ?>
+      <?php foreach ($categories as $cat): ?>
       <li>
         <label>
-          <input type="radio" name="cat-filter"
-                 value="<?php echo htmlspecialchars($cat, ENT_QUOTES, 'UTF-8'); ?>">
-          <?php echo htmlspecialchars($cat, ENT_QUOTES, 'UTF-8'); ?>
+          <input type="radio" name="cat-filter" value="<?php echo $cat->id; ?>">
+          <?php echo htmlspecialchars($cat->name, ENT_QUOTES, 'UTF-8'); ?>
         </label>
       </li>
       <?php endforeach; ?>
     </ul>
+
+    <!-- Advanced Spec Filters -->
+    <?php foreach ($specOptions as $specName => $options): if (empty($options)) continue; ?>
+      <h5 style="margin-top:20px;"><i class="bi bi-cpu" style="color:var(--primary)"></i> <?php echo $specName; ?></h5>
+      <ul class="st-cat-list">
+        <li>
+          <label><input type="radio" name="spec-filter-<?php echo $specName; ?>" value="" checked> Tất cả</label>
+        </li>
+        <?php foreach ($options as $opt): ?>
+          <li>
+            <label>
+              <input type="radio" name="spec-filter-<?php echo $specName; ?>" value="<?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?>">
+              <?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?>
+            </label>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endforeach; ?>
 
     <!-- Dual range slider -->
     <?php
@@ -140,7 +150,7 @@ $bannerConfigs  = [
         <input class="st-range-input" type="range" id="rangeMax"
                min="0" max="<?php echo $maxPrice; ?>" value="<?php echo $maxPrice; ?>" step="100000">
       </div>
-      <button class="btn-filter" id="btnPriceFilter">
+      <button class="btn-filter" id="btnPriceFilter" style="margin-top:15px; width:100%;">
         <i class="bi bi-funnel"></i> Áp dụng
       </button>
     </div>
@@ -249,6 +259,14 @@ $bannerConfigs  = [
 
     <!-- Nút xem thêm — JS sẽ inject vào đây -->
     <div id="loadMoreWrap" style="width:100%;display:flex;justify-content:center;padding:8px 0 16px;"></div>
+
+    <script>
+      window.ST_LIST_CONFIG = {
+        total: <?php echo (int)($totalProducts ?? 0); ?>,
+        count: <?php echo count($products); ?>,
+        limit: 10
+      };
+    </script>
 
     <?php endif; ?>
   </div>

@@ -77,8 +77,12 @@ SessionHelper::requireAdmin();
     <div class="st-chart-card st-chart-main">
       <div class="st-chart-header">
         <div>
-          <h3>📈 Doanh thu theo tháng</h3>
-          <p>12 tháng gần nhất</p>
+          <h3>📈 Doanh thu <?php echo $range === 'day' ? '30 ngày' : '12 tháng'; ?> gần nhất</h3>
+          <p>Dữ liệu dựa trên đơn hàng đã thanh toán</p>
+          <div class="st-range-toggle" style="margin-top:10px">
+            <a href="/Product/myOrders?range=month" class="btn-range <?php echo $range === 'month' ? 'active' : ''; ?>">Theo tháng</a>
+            <a href="/Product/myOrders?range=day" class="btn-range <?php echo $range === 'day' ? 'active' : ''; ?>">Theo ngày</a>
+          </div>
         </div>
         <div class="st-chart-legend">
           <span class="st-legend-dot" style="background:#1a56db"></span> Doanh thu

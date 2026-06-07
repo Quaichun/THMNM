@@ -23,13 +23,20 @@ class ProductController
 
     public function index()
     {
-        $products = $this->productModel->getProducts();
+        $limit = 10;
+        $products = $this->productModel->filterProducts([], 0, $limit);
+        $totalProducts = $this->productModel->countFilteredProducts([]);
+        $categories = (new CategoryModel($this->db))->getCategories();
+        $specOptions = $this->productModel->getDistinctSpecValues(['RAM', 'CPU', 'Dung lượng']);
         include 'app/views/product/list.php';
     }
 
     public function show($id)
     {
         $product = $this->productModel->getProductById($id);
+        $specs = $this->productModel->getSpecsByProductId($id);
+        $reviews = $this->productModel->getReviewsByProductId($id);
+        $ratingStats = $this->productModel->getRatingStats($id);
 
         if ($product) {
             include 'app/views/product/show.php';
@@ -74,6 +81,9 @@ class ProductController
                 $categories = (new CategoryModel($this->db))->getCategories();
                 include 'app/views/product/add.php';
             } else {
+                // Save specs
+                $specs = $_POST['specs'] ?? [];
+                $this->productModel->saveSpecs($result, $specs);
                 header('Location: /Product');
             }
         }
@@ -84,6 +94,7 @@ class ProductController
         SessionHelper::requireAdmin();
         $product = $this->productModel->getProductById($id);
         $categories = (new CategoryModel($this->db))->getCategories();
+        $specs = $this->productModel->getSpecsByProductId($id);
 
         if ($product) {
             include 'app/views/product/edit.php';
@@ -118,6 +129,9 @@ class ProductController
             );
 
             if ($edit) {
+                // Save specs
+                $specs = $_POST['specs'] ?? [];
+                $this->productModel->saveSpecs($id, $specs);
                 header('Location: /Product');
             } else {
                 echo "Da xay ra loi khi luu san pham.";
@@ -279,7 +293,42 @@ class ProductController
     public function list()
     {
         $products = $this->productModel->getProducts();
+        $categories = (new CategoryModel($this->db))->getCategories();
+        $specOptions = $this->productModel->getDistinctSpecValues(['RAM', 'CPU', 'Dung lượng']);
         require_once 'app/views/product/list.php';
+    }
+
+    public function ajaxFilter()
+    {
+        $filters = $_POST['filters'] ?? [];
+        $offset = (int)($_POST['offset'] ?? 0);
+        $limit = (int)($_POST['limit'] ?? 12);
+
+        $products = $this->productModel->filterProducts($filters, $offset, $limit);
+        
+        // Get total count for the same filters
+        $total = $this->productModel->countFilteredProducts($filters);
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true, 
+            'products' => $products,
+            'total' => $total
+        ]);
+        exit;
+    }
+
+    public function liveSearch()
+    {
+        $query = $_GET['q'] ?? '';
+        $products = [];
+        if (strlen($query) >= 2) {
+            $products = $this->productModel->filterProducts(['search' => $query], 0, 8);
+        }
+        
+        header('Content-Type: application/json');
+        echo json_encode($products);
+        exit;
     }
 
     public function checkout()
@@ -399,7 +448,14 @@ class ProductController
             // Admin: load dashboard + tất cả đơn hàng
             $orders         = $orderModel->getAllOrdersWithTotal();
             $stats          = $orderModel->getRevenueStats();
-            $revenueByMonth = $orderModel->getRevenueByMonth();
+            
+            $range = $_GET['range'] ?? 'month';
+            if ($range === 'day') {
+                $revenueData = $orderModel->getRevenueByDay();
+            } else {
+                $revenueData = $orderModel->getRevenueByMonth();
+            }
+
             $revenueBycat   = $orderModel->getRevenueByCategory();
             $topProducts    = $orderModel->getTopProducts(5);
 
@@ -407,7 +463,7 @@ class ProductController
             $chartLabels  = [];
             $chartRevenue = [];
             $chartOrders  = [];
-            foreach ($revenueByMonth as $r) {
+            foreach ($revenueData as $r) {
                 $chartLabels[]  = $r->label;
                 $chartRevenue[] = (float)$r->revenue;
                 $chartOrders[]  = (int)$r->order_count;
@@ -587,6 +643,42 @@ exit;
         header('Content-Type: text/plain; charset=UTF-8');
         echo 'QR currently unavailable';
         exit;
+    }
+
+    public function submitReview()
+    {
+        SessionHelper::requireLogin();
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $productId = $_POST['product_id'] ?? null;
+            $rating = $_POST['rating'] ?? 5;
+            $comment = $_POST['comment'] ?? '';
+            $imagePath = null;
+
+            if (isset($_FILES['review_image']) && $_FILES['review_image']['error'] == 0) {
+                try {
+                    $imagePath = $this->uploadImage($_FILES['review_image']);
+                } catch (Exception $e) {
+                    SessionHelper::setFlash('error', $e->getMessage());
+                    header('Location: /Product/show/' . $productId . '#reviews');
+                    exit;
+                }
+            }
+
+            if ($productId) {
+                $userId = SessionHelper::getUserId();
+                $result = $this->productModel->addReview($productId, $userId, $rating, $comment, $imagePath);
+
+                if ($result) {
+                    SessionHelper::setFlash('success', 'Cảm ơn bạn đã đánh giá!');
+                } else {
+                    SessionHelper::setFlash('error', 'Có lỗi xảy ra khi gửi đánh giá.');
+                }
+                header('Location: /Product/show/' . $productId . '#reviews');
+                exit;
+            }
+        }
+        header('Location: /Product');
     }
 }
 ?>

@@ -112,22 +112,22 @@ class AccountModel
         return $stmt->fetch(PDO::FETCH_OBJ);
     }
 
-    public function saveEmailVerifyToken($id, $tokenHash)
+    public function saveEmailVerifyToken($id, $tokenHash, $hours = 24)
     {
-        $stmt = $this->db->prepare("UPDATE account SET email_verify_token = ? WHERE id = ?");
-        return $stmt->execute([$tokenHash, $id]);
+        $stmt = $this->db->prepare("UPDATE account SET email_verify_token = ?, email_verify_expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR) WHERE id = ?");
+        return $stmt->execute([$tokenHash, (int)$hours, $id]);
     }
 
     public function findByEmailVerifyToken($tokenHash)
     {
-        $stmt = $this->db->prepare("SELECT * FROM account WHERE email_verify_token = ? LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM account WHERE email_verify_token = ? AND email_verify_expires_at > NOW() LIMIT 1");
         $stmt->execute([$tokenHash]);
         return $stmt->fetch(PDO::FETCH_OBJ);
     }
 
     public function markEmailVerified($id)
     {
-        $stmt = $this->db->prepare("UPDATE account SET email_verified_at = NOW(), email_verify_token = NULL WHERE id = ?");
+        $stmt = $this->db->prepare("UPDATE account SET email_verified_at = NOW(), email_verify_token = NULL, email_verify_expires_at = NULL WHERE id = ?");
         return $stmt->execute([$id]);
     }
 
@@ -153,5 +153,11 @@ class AccountModel
     {
         $stmt = $this->db->prepare("UPDATE account SET avatar = ? WHERE id = ?");
         return $stmt->execute([$avatarPath, $id]);
+    }
+
+    public function deleteUser($id)
+    {
+        $stmt = $this->db->prepare("DELETE FROM account WHERE id = ?");
+        return $stmt->execute([$id]);
     }
 }
