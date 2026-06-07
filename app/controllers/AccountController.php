@@ -2,6 +2,7 @@
 require_once 'app/config/database.php';
 require_once 'app/models/AccountModel.php';
 require_once 'app/helpers/SessionHelper.php';
+require_once 'app/helpers/MailHelper.php';
 
 class AccountController
 {
@@ -31,24 +32,36 @@ class AccountController
             $password = $_POST['password'] ?? '';
             $confirm = $_POST['confirm_password'] ?? '';
 
-            if (strlen($username) < 3) $errors[] = 'Ten dang nhap phai co it nhat 3 ky tu.';
-            if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) $errors[] = 'Ten dang nhap chi gom chu, so va dau gach duoi.';
-            if (!$fullname) $errors[] = 'Vui long nhap ho ten.';
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Email khong hop le.';
-            if (strlen($password) < 6) $errors[] = 'Mat khau phai co it nhat 6 ky tu.';
-            if ($password !== $confirm) $errors[] = 'Mat khau xac nhan khong khop.';
-            if ($this->accountModel->usernameExists($username)) $errors[] = 'Ten dang nhap da ton tai.';
-            if ($this->accountModel->emailExists($email)) $errors[] = 'Email da duoc su dung.';
+            if (strlen($username) < 3) $errors[] = 'Tên đăng nhập phải có ít nhất 3 ký tự.';
+            if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) $errors[] = 'Tên đăng nhập chỉ gồm chữ, số và dấu gach dưới.';
+            if (!$fullname) $errors[] = 'Vui lòng nhập họ tên.';
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Email không hợp lệ.';
+            if (strlen($password) < 6) $errors[] = 'Mật khẩu phải có ít nhất 6 ký tự.';
+            if ($password !== $confirm) $errors[] = 'Mật khẩu xác nhận không khớp.';
+            if ($this->accountModel->usernameExists($username)) $errors[] = 'Tên đăng nhập đã tồn tại.';
+            if ($this->accountModel->emailExists($email)) $errors[] = 'Email đã được sử dụng.';
 
             if (empty($errors)) {
-                $this->accountModel->register($username, $fullname, $password, $email);
-                $user = $this->accountModel->findByUsername($username);
-                $verifyToken = bin2hex(random_bytes(32));
-                $this->accountModel->saveEmailVerifyToken($user->id, hash('sha256', $verifyToken));
-                SessionHelper::setFlash('success', 'Đăng ký thành công! Bạn có thể xác thực email ngay.');
-                SessionHelper::setFlash('verify_link', '/Account/verifyEmail?token=' . $verifyToken);
-                header('Location: /Account/login');
-                return;
+                if ($this->accountModel->register($username, $fullname, $password, $email)) {
+                    $user = $this->accountModel->findByUsername($username);
+                    $verifyToken = bin2hex(random_bytes(32));
+                    $this->accountModel->saveEmailVerifyToken($user->id, hash('sha256', $verifyToken));
+                    
+                    MailHelper::send(
+                        $email, 
+                        'Xác nhận tài khoản ShopTech',
+                        'Chào mừng ' . $fullname . '!',
+                        'Cảm ơn bạn đã đăng ký tài khoản tại ShopTech. Vui lòng nhấn vào nút bên dưới để xác thực email và bắt đầu mua sắm.',
+                        '/Account/verifyEmail?token=' . $verifyToken,
+                        'Xác thực tài khoản'
+                    );
+
+                    SessionHelper::setFlash('success', 'Đăng ký thành công! Một email xác nhận đã được gửi đến ' . $email);
+                    header('Location: /Account/login');
+                    return;
+                } else {
+                    $errors[] = 'Có lỗi xảy ra khi tạo tài khoản.';
+                }
             }
         }
 
@@ -69,13 +82,13 @@ class AccountController
             $remember = !empty($_POST['remember_me']);
 
             if (!$login || !$password) {
-                $errors[] = 'Vui long nhap day du thong tin.';
+                $errors[] = 'Vui lòng nhập đầy đủ thông tin.';
             } else {
                 $user = $this->accountModel->findByLogin($login);
                 if (!$user || !password_verify($password, $user->password)) {
-                    $errors[] = 'Ten dang nhap hoac mat khau khong dung.';
+                    $errors[] = 'Tên đăng nhập hoặc mật khẩu không đúng.';
                 } elseif (($user->status ?? 'active') !== 'active') {
-                    $errors[] = 'Tai khoan dang bi khoa. Vui long lien he quan tri vien.';
+                    $errors[] = 'Tài khoản đang bị khóa. Vui lòng liên hệ quản trị viên.';
                 } else {
                     SessionHelper::login($user);
 
@@ -86,7 +99,7 @@ class AccountController
                         setcookie('remember_token', $rawToken, time() + (30 * 24 * 3600), '/', '', false, true);
                     }
 
-                    SessionHelper::setFlash('success', 'Chao mung ' . $user->fullname . '!');
+                    SessionHelper::setFlash('success', 'Chào mừng ' . $user->fullname . '!');
                     $redirect = $_SESSION['redirect_after_login'] ?? '/Product';
                     unset($_SESSION['redirect_after_login']);
                     header('Location: ' . $redirect);
@@ -110,7 +123,6 @@ class AccountController
     public function forgotPassword()
     {
         $errors = [];
-        $resetLink = SessionHelper::getFlash('reset_link');
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = trim($_POST['email'] ?? '');
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -120,9 +132,17 @@ class AccountController
                 if ($user) {
                     $rawToken = bin2hex(random_bytes(32));
                     $this->accountModel->saveResetToken($user->id, hash('sha256', $rawToken));
-                    $link = '/Account/resetPassword?token=' . $rawToken;
-                    SessionHelper::setFlash('success', 'Đã tạo link đặt lại mật khẩu.');
-                    SessionHelper::setFlash('reset_link', $link);
+                    
+                    MailHelper::send(
+                        $email,
+                        'Đặt lại mật khẩu ShopTech',
+                        'Yêu cầu đặt lại mật khẩu',
+                        'Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nếu không phải bạn, hãy bỏ qua email này.',
+                        '/Account/resetPassword?token=' . $rawToken,
+                        'Đặt lại mật khẩu'
+                    );
+
+                    SessionHelper::setFlash('success', 'Hệ thống đã gửi hướng dẫn đặt lại mật khẩu đến email của bạn.');
                 } else {
                     SessionHelper::setFlash('success', 'Nếu email tồn tại, hệ thống đã gửi hướng dẫn đặt lại mật khẩu.');
                 }
@@ -169,20 +189,20 @@ class AccountController
     {
         $token = $_GET['token'] ?? '';
         if (!$token) {
-            SessionHelper::setFlash('error', 'Thieu token xac thuc email.');
+            SessionHelper::setFlash('error', 'Thiếu token xác thực email.');
             header('Location: /Account/login');
             return;
         }
 
         $user = $this->accountModel->findByEmailVerifyToken(hash('sha256', $token));
         if (!$user) {
-            SessionHelper::setFlash('error', 'Token xac thuc khong hop le hoac da dung.');
+            SessionHelper::setFlash('error', 'Link xác thực không hợp lệ, đã hết hạn hoặc đã được sử dụng.');
             header('Location: /Account/login');
             return;
         }
 
         $this->accountModel->markEmailVerified($user->id);
-        SessionHelper::setFlash('success', 'Xac thuc email thanh cong.');
+        SessionHelper::setFlash('success', 'Xác thực email thành công! Bây giờ bạn đã có thể thực hiện mua sắm.');
         header('Location: /Account/login');
     }
 
@@ -193,20 +213,19 @@ class AccountController
         $userId = SessionHelper::getUserId();
         $user = $this->accountModel->findById($userId);
         if (!$user) {
-            SessionHelper::setFlash('error', 'Khong tim thay tai khoan.');
+            SessionHelper::setFlash('error', 'Không tìm thấy tài khoản.');
             header('Location: /Account/profile?tab=info');
             return;
         }
 
         if (!empty($user->email_verified_at)) {
-            SessionHelper::setFlash('success', 'Email da duoc xac thuc truoc do.');
+            SessionHelper::setFlash('success', 'Email của bạn đã được xác thực trước đó.');
             header('Location: /Account/profile?tab=info');
             return;
         }
 
         $verifyToken = bin2hex(random_bytes(32));
         $this->accountModel->saveEmailVerifyToken($userId, hash('sha256', $verifyToken));
-        SessionHelper::setFlash('success', 'Da tao lai link xac thuc email.');
         SessionHelper::setFlash('verify_link', '/Account/verifyEmail?token=' . $verifyToken);
         header('Location: /Account/profile?tab=info');
     }
@@ -386,6 +405,60 @@ class AccountController
         if ($next === 'locked') $this->accountModel->clearRememberToken($id);
 
         SessionHelper::setFlash('success', $next === 'locked' ? 'Da khoa tai khoan.' : 'Da mo khoa tai khoan.');
+        header('Location: /Account/users');
+        return;
+    }
+
+    public function deleteUser($id)
+    {
+        SessionHelper::requireAdmin();
+        if ($id == SessionHelper::getUserId()) {
+            SessionHelper::setFlash('error', 'Không thể xóa tài khoản của chính mình.');
+            header('Location: /Account/users');
+            return;
+        }
+
+        $result = $this->accountModel->deleteUser($id);
+        if ($result) {
+            SessionHelper::setFlash('success', 'Xóa người dùng thành công.');
+        } else {
+            SessionHelper::setFlash('error', 'Có lỗi xảy ra khi xóa người dùng.');
+        }
+        header('Location: /Account/users');
+    }
+
+    public function editUser($id)
+    {
+        SessionHelper::requireAdmin();
+        $user = $this->accountModel->findById($id);
+        if (!$user) {
+            SessionHelper::setFlash('error', 'Không tìm thấy người dùng.');
+            header('Location: /Account/users');
+            return;
+        }
+        include 'app/views/account/edit_user.php';
+    }
+
+    public function saveUserEdit()
+    {
+        SessionHelper::requireAdmin();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id = $_POST['id'] ?? null;
+            $fullname = trim($_POST['fullname'] ?? '');
+            $username = trim($_POST['username'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $role = $_POST['role'] ?? 'user';
+            $status = $_POST['status'] ?? 'active';
+
+            if ($id) {
+                // We use updateProfile for basic info and updateRole/updateStatus for admin fields
+                $this->accountModel->updateProfile($id, $fullname, $username, $email);
+                $this->accountModel->updateRole($id, $role);
+                $this->accountModel->updateStatus($id, $status);
+                
+                SessionHelper::setFlash('success', 'Cập nhật tài khoản thành công.');
+            }
+        }
         header('Location: /Account/users');
     }
 }

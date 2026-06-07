@@ -102,6 +102,152 @@ window.ST_CURRENT_PRODUCT = {
   </div>
 </div>
 
+<!-- Specs and Reviews -->
+<div class="st-product-extra fade-up" style="margin-top: 40px;">
+  
+  <div class="st-extra-grid">
+    <!-- Left: Specifications -->
+    <div class="st-specs-card">
+      <h3 class="st-section-title"><i class="bi bi-cpu"></i> Thông số kỹ thuật</h3>
+      <table class="st-specs-table">
+        <tbody>
+          <?php if (!empty($specs)): ?>
+            <?php foreach ($specs as $spec): ?>
+              <tr>
+                <td class="spec-name"><?php echo htmlspecialchars($spec->spec_name, ENT_QUOTES, 'UTF-8'); ?></td>
+                <td class="spec-value"><?php echo htmlspecialchars($spec->spec_value, ENT_QUOTES, 'UTF-8'); ?></td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <tr>
+              <td colspan="2" style="text-align: center; padding: 20px; color: #888;">
+                Chưa có thông số kỹ thuật cho sản phẩm này.
+              </td>
+            </tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Right: Reviews -->
+    <div id="reviews" class="st-reviews-section">
+      <h3 class="st-section-title"><i class="bi bi-chat-left-text"></i> Đánh giá & Nhận xét</h3>
+      
+      <!-- Rating Summary (TGDĐ Style) -->
+      <?php if ($ratingStats && $ratingStats->total > 0): ?>
+      <div class="st-rating-summary">
+        <div class="st-rating-avg">
+          <div class="avg-score"><?php echo number_format($ratingStats->average, 1); ?> <i class="bi bi-star-fill"></i></div>
+          <div class="total-count"><?php echo $ratingStats->total; ?> đánh giá</div>
+        </div>
+        <div class="st-rating-bars">
+          <?php for($i=5; $i>=1; $i--): 
+            $starKey = "star".$i;
+            $count = $ratingStats->$starKey;
+            $percent = ($count / $ratingStats->total) * 100;
+          ?>
+          <div class="bar-item">
+            <span class="star-num"><?php echo $i; ?> <i class="bi bi-star-fill"></i></span>
+            <div class="bar-bg"><div class="bar-fill" style="width: <?php echo $percent; ?>%"></div></div>
+            <span class="percent-num"><?php echo round($percent); ?>%</span>
+          </div>
+          <?php endfor; ?>
+        </div>
+      </div>
+
+      <!-- Review Image Gallery -->
+      <?php 
+        $reviewImages = array_filter(array_map(fn($r) => $r->image, $reviews));
+        if (!empty($reviewImages)):
+      ?>
+      <div class="st-review-gallery">
+        <p>Ảnh từ khách hàng (<?php echo count($reviewImages); ?>):</p>
+        <div class="gallery-scroll">
+          <?php foreach ($reviewImages as $img): ?>
+            <img src="/<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="Review image" onclick="window.open(this.src)">
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+      <?php endif; ?>
+
+      <!-- Review Form -->
+      <?php if (SessionHelper::isLoggedIn()): ?>
+        <form action="/Product/submitReview" method="POST" enctype="multipart/form-data" class="st-review-form">
+          <input type="hidden" name="product_id" value="<?php echo $product->id; ?>">
+          <div class="st-rating-input">
+            <div class="st-stars">
+              <?php for($i=5; $i>=1; $i--): ?>
+                <input type="radio" name="rating" value="<?php echo $i; ?>" id="star<?php echo $i; ?>" <?php echo $i==5?'checked':''; ?>>
+                <label for="star<?php echo $i; ?>"><i class="bi bi-star-fill"></i></label>
+              <?php endfor; ?>
+            </div>
+          </div>
+          <textarea name="comment" placeholder="Bạn thấy sản phẩm này thế nào?..." required></textarea>
+          <div class="st-form-footer">
+            <label class="btn-upload">
+              <i class="bi bi-camera"></i> Gửi ảnh thực tế
+              <input type="file" name="review_image" accept="image/*" onchange="previewImg(this)">
+            </label>
+            <div id="imgPreview"></div>
+            <button type="submit" class="btn btn-primary">Gửi đánh giá</button>
+          </div>
+        </form>
+        <script>
+          function previewImg(input) {
+            const preview = document.getElementById('imgPreview');
+            preview.innerHTML = '';
+            if (input.files && input.files[0]) {
+              const reader = new FileReader();
+              reader.onload = e => preview.innerHTML = `<img src="${e.target.result}" style="width:50px;height:50px;border-radius:4px;object-fit:cover">`;
+              reader.readAsDataURL(input.files[0]);
+            }
+          }
+        </script>
+      <?php else: ?>
+        <p class="st-login-hint">Vui lòng <a href="/Account/login">đăng nhập</a> để gửi đánh giá.</p>
+      <?php endif; ?>
+
+      <!-- Review List -->
+      <div class="st-review-list">
+        <?php if (!empty($reviews)): ?>
+          <?php foreach ($reviews as $rev): ?>
+            <div class="st-review-item">
+              <div class="st-review-header">
+                <div class="rev-info">
+                  <div class="rev-name">
+                    <?php echo htmlspecialchars($rev->fullname, ENT_QUOTES, 'UTF-8'); ?>
+                    <span class="verified-tag"><i class="bi bi-check-circle-fill"></i> Đã mua tại ShopTech</span>
+                  </div>
+                  <div class="rev-meta">
+                    <span class="rev-stars">
+                      <?php for($i=1; $i<=5; $i++): ?>
+                        <i class="bi bi-star-fill <?php echo $i<=$rev->rating ? 'active' : ''; ?>"></i>
+                      <?php endfor; ?>
+                    </span>
+                    <span class="rev-date"><i class="bi bi-clock"></i> <?php echo date('d/m/Y', strtotime($rev->created_at)); ?></span>
+                  </div>
+                </div>
+              </div>
+              <div class="st-review-body">
+                <div class="rev-text"><?php echo nl2br(htmlspecialchars($rev->comment, ENT_QUOTES, 'UTF-8')); ?></div>
+                <?php if ($rev->image): ?>
+                  <div class="rev-img-wrap">
+                    <img src="/<?php echo htmlspecialchars($rev->image, ENT_QUOTES, 'UTF-8'); ?>" alt="User upload" onclick="window.open(this.src)">
+                  </div>
+                <?php endif; ?>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <p style="text-align: center; color: #888; padding: 20px;">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <?php else: ?>
   <div class="alert alert-danger">Không tìm thấy sản phẩm!</div>
 <?php endif; ?>

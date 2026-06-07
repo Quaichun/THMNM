@@ -41,11 +41,10 @@
     }
   
     /* ════════════════════════════════════════════════════════════
-       2. SEARCH AUTOCOMPLETE
+       2. SEARCH AUTOCOMPLETE (LIVE SEARCH)
     ════════════════════════════════════════════════════════════ */
     const searchWrap  = document.querySelector('.st-search');
     const searchInput = searchWrap?.querySelector('input');
-    const products    = window.ST_PRODUCTS || [];
     let dropdown      = null;
   
     function buildDropdown() {
@@ -58,43 +57,55 @@
       });
     }
   
-    function openDropdown(items) {
+    async function openDropdown(q) {
       buildDropdown();
-      if (!items.length) {
-        dropdown.innerHTML = `<div class="st-search-no-result">🔍 Không tìm thấy sản phẩm nào</div>`;
-      } else {
-        const q  = searchInput.value.trim();
-        const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
-        dropdown.innerHTML = items.map(p => {
-          const name  = p.name.replace(re, '<mark>$1</mark>');
-          const price = parseInt(p.price).toLocaleString('vi-VN') + '₫';
-          return `<div class="st-search-item" data-url="/Product/show/${p.id}">
-            <div class="st-si-icon">🛒</div>
-            <div class="st-si-info">
-              <div class="st-si-name">${name}</div>
-              <div class="st-si-cat">${p.cat || ''}</div>
-            </div>
-            <div class="st-si-price">${price}</div>
-          </div>`;
-        }).join('');
-        dropdown.querySelectorAll('.st-search-item').forEach(item => {
-          item.addEventListener('click', () => window.location.href = item.dataset.url);
-        });
-      }
+      dropdown.innerHTML = `<div class="st-search-loading" style="padding:15px;text-align:center;">Đang tìm...</div>`;
       dropdown.classList.add('open');
+
+      try {
+        const res = await fetch(`/Product/liveSearch?q=${encodeURIComponent(q)}`);
+        const items = await res.json();
+
+        if (!items.length) {
+          dropdown.innerHTML = `<div class="st-search-no-result" style="padding:15px;text-align:center;">🔍 Không tìm thấy sản phẩm nào</div>`;
+        } else {
+          dropdown.innerHTML = items.map(p => {
+            const price = parseInt(p.price).toLocaleString('vi-VN') + '₫';
+            const img = p.image ? `/${p.image}` : '';
+            return `<div class="st-search-item" data-url="/Product/show/${p.id}">
+              <div class="st-si-img-wrap" style="width:40px;height:40px;overflow:hidden;border-radius:4px;flex-shrink:0;">
+                ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;">` : '📦'}
+              </div>
+              <div class="st-si-info" style="flex:1;min-width:0;padding-left:10px;">
+                <div class="st-si-name" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+                <div class="st-si-cat" style="font-size:0.75rem;opacity:0.7;">${p.category_name || ''}</div>
+              </div>
+              <div class="st-si-price" style="font-weight:700;color:var(--primary);">${price}</div>
+            </div>`;
+          }).join('');
+          
+          dropdown.querySelectorAll('.st-search-item').forEach(item => {
+            item.addEventListener('click', () => window.location.href = item.dataset.url);
+          });
+        }
+      } catch (e) {
+        dropdown.innerHTML = `<div class="st-search-no-result">Có lỗi xảy ra</div>`;
+      }
     }
   
     function closeDropdown() { dropdown?.classList.remove('open'); }
   
-    if (searchInput && products.length) {
+    if (searchInput) {
+      let searchTimer;
       searchInput.addEventListener('input', () => {
-        const q = searchInput.value.trim().toLowerCase();
-        if (!q) { closeDropdown(); return; }
-        openDropdown(products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8));
+        clearTimeout(searchTimer);
+        const q = searchInput.value.trim();
+        if (q.length < 2) { closeDropdown(); return; }
+        searchTimer = setTimeout(() => openDropdown(q), 300);
       });
   
       searchInput.addEventListener('keydown', e => {
-        if (!dropdown) return;
+        if (!dropdown || !dropdown.classList.contains('open')) return;
         const items = Array.from(dropdown.querySelectorAll('.st-search-item'));
         const idx   = items.findIndex(el => el.classList.contains('selected'));
         if (e.key === 'ArrowDown') {
@@ -110,25 +121,27 @@
           if (active) { e.preventDefault(); window.location.href = active.dataset.url; }
         } else if (e.key === 'Escape') { closeDropdown(); }
       });
-  
-      searchInput.addEventListener('focus', () => {
-        if (searchInput.value.trim()) searchInput.dispatchEvent(new Event('input'));
-      });
-    }
-  
-    /* Grid search filter */
-    if (searchInput) {
-      searchInput.addEventListener('input', () => {
-        const q = searchInput.value.trim().toLowerCase();
-        document.querySelectorAll('.st-card').forEach(c => {
-          c.style.display = (!q || (c.dataset.name||'').toLowerCase().includes(q)) ? '' : 'none';
-        });
-      });
     }
   
     /* ════════════════════════════════════════════════════════════
-       3. DUAL PRICE RANGE SLIDER
+       3. ADVANCED AJAX FILTERING
     ════════════════════════════════════════════════════════════ */
+    const productGrid = document.querySelector('.st-product-grid');
+    const loadMoreWrap = document.getElementById('loadMoreWrap');
+    const noResultMsg = document.getElementById('noResultMsg');
+    
+    let currentLimit = window.ST_LIST_CONFIG?.limit || 10;
+    let currentOffset = window.ST_LIST_CONFIG?.count || 0;
+    let totalCount = window.ST_LIST_CONFIG?.total || 0;
+    let isLoading = false;
+    let isLastPage = currentOffset >= totalCount;
+
+    // Initialize UI
+    if (productGrid && loadMoreWrap) {
+        renderLoadMoreWidget();
+    }
+
+    // Dual Range Slider logic
     const minSlider = document.getElementById('rangeMin');
     const maxSlider = document.getElementById('rangeMax');
     const labelMin  = document.getElementById('labelMin');
@@ -153,85 +166,185 @@
     minSlider?.addEventListener('input', updateSlider);
     maxSlider?.addEventListener('input', updateSlider);
     if (minSlider) updateSlider();
-  
-    document.getElementById('btnPriceFilter')?.addEventListener('click', () => {
-      const min = parseInt(minSlider?.value || 0);
-      const max = parseInt(maxSlider?.value || 999999999);
-      applyAllFilters(min, max);
-    });
-  
-    /* ════════════════════════════════════════════════════════════
-       4. CATEGORY FILTER
-    ════════════════════════════════════════════════════════════ */
-    document.querySelectorAll('input[name="cat-filter"]').forEach(r => {
-      r.addEventListener('change', () => {
-        const min = parseInt(minSlider?.value || 0);
-        const max = parseInt(maxSlider?.value || 999999999);
-        applyAllFilters(min, max);
-      });
-    });
-  
-    function applyAllFilters(min, max) {
-      const grid = document.querySelector('.st-product-grid');
-      if (!grid) return;
-      const cat = document.querySelector('input[name="cat-filter"]:checked')?.value || 'all';
-      const q   = (searchInput?.value || '').trim().toLowerCase();
-      grid.querySelectorAll('.st-card').forEach(card => {
-        const price   = parseInt(card.dataset.price || '0');
-        const catOk   = cat === 'all' || card.dataset.cat === cat;
-        const priceOk = price >= min && price <= max;
-        const nameOk  = !q || (card.dataset.name || '').toLowerCase().includes(q);
-        card.style.display = (catOk && priceOk && nameOk) ? '' : 'none';
-      });
+
+
+    async function fetchFilteredProducts(isLoadMore = false) {
+        if (isLoading || (isLoadMore && isLastPage) || !productGrid) return;
+        
+        if (!isLoadMore) {
+            currentOffset = 0;
+            isLastPage = false;
+            productGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px;"><div class="st-loading-spinner" style="border: 4px solid rgba(0,0,0,.1); border-left-color: var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: st-spin 1s linear infinite; margin: 0 auto 15px;"></div><p>Đang tìm sản phẩm...</p></div>';
+        }
+        
+        isLoading = true;
+
+        const filters = {
+            category: document.querySelector('input[name="cat-filter"]:checked')?.value === 'all' ? '' : document.querySelector('input[name="cat-filter"]:checked')?.value,
+            min_price: document.getElementById('rangeMin')?.value || 0,
+            max_price: document.getElementById('rangeMax')?.value || 999999999,
+            search: searchInput?.value.trim() || '',
+            specs: {}
+        };
+
+        document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+            if (radio.name.startsWith('spec-filter-') && radio.value !== '') {
+                const specName = radio.name.replace('spec-filter-', '');
+                filters.specs[specName] = radio.value;
+            }
+        });
+
+        const formData = new FormData();
+        formData.append('filters[category]', filters.category);
+        formData.append('filters[min_price]', filters.min_price);
+        formData.append('filters[max_price]', filters.max_price);
+        formData.append('filters[search]', filters.search);
+        formData.append('offset', currentOffset);
+        formData.append('limit', currentLimit);
+        for (const [key, val] of Object.entries(filters.specs)) {
+            formData.append(`filters[specs][${key}]`, val);
+        }
+
+        try {
+            const res = await fetch('/Product/ajaxFilter', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                if (!isLoadMore) productGrid.innerHTML = '';
+                totalCount = data.total || 0;
+
+                if (data.products.length === 0 && !isLoadMore) {
+                    productGrid.style.display = 'none';
+                    if (noResultMsg) noResultMsg.style.display = 'block';
+                    isLastPage = true;
+                } else {
+                    productGrid.style.display = 'grid';
+                    if (noResultMsg) noResultMsg.style.display = 'none';
+                    data.products.forEach(p => productGrid.appendChild(createProductCard(p)));
+                    currentOffset += data.products.length;
+                    if (currentOffset >= totalCount) isLastPage = true;
+                }
+                renderLoadMoreWidget();
+            }
+        } catch (e) { console.error(e); } finally { isLoading = false; }
     }
-  
-/* ════════════════════════════════════════════════════════════
-   5. PRODUCT SORT
-════════════════════════════════════════════════════════════ */
-const sortSelect  = document.getElementById('sortProducts');
-const productGrid = document.querySelector('.st-product-grid');
 
-if (sortSelect && productGrid) {
+    function createProductCard(p) {
+        const div = document.createElement('div');
+        div.className = 'st-card fade-up';
+        div.dataset.price = p.price;
+        div.dataset.name = p.name;
+        const price = parseInt(p.price).toLocaleString('vi-VN') + '₫';
+        const img = p.image ? `<img class="st-card-img" src="/${p.image}" alt="">` : '<div class="st-card-img-placeholder">📦</div>';
+        
+        const isAdmin = window.ST_USER?.isAdmin || false;
+        const isLoggedIn = window.ST_USER?.isLoggedIn || false;
 
-  // Lưu thứ tự ban đầu
-  const originalCards = Array.from(
-    productGrid.querySelectorAll('.st-card')
-  );
+        div.innerHTML = `
+            <a href="/Product/show/${p.id}">${img}</a>
+            <div class="st-card-body">
+                ${p.category_name ? `<span class="st-card-cat">${p.category_name}</span>` : ''}
+                <div class="st-card-name"><a href="/Product/show/${p.id}" style="color:inherit;">${p.name}</a></div>
+                <div class="st-card-price">${price}</div>
+                <div class="st-card-actions">
+                    <a href="/Product/show/${p.id}" class="btn btn-primary btn-sm"><i class="bi bi-eye"></i> Xem</a>
+                    ${isAdmin ? `
+                        <a href="/Product/edit/${p.id}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i></a>
+                        <a href="/Product/delete/${p.id}" class="btn btn-danger btn-sm btn-delete-confirm"><i class="bi bi-trash"></i></a>
+                    ` : ''}
+                    ${isLoggedIn && !isAdmin ? `
+                        <a href="/Product/addToCart/${p.id}" class="btn btn-success btn-sm ajax-add-cart-dynamic"><i class="bi bi-cart-plus"></i> Thêm giỏ</a>
+                    ` : ''}
+                </div>
+            </div>`;
+        
+        div.querySelector('.btn-delete-confirm')?.addEventListener('click', e => {
+            if (!confirm('Bạn có chắc chắn muốn xóa?')) e.preventDefault();
+        });
 
-  sortSelect.addEventListener('change', () => {
+        div.querySelector('.ajax-add-cart-dynamic')?.addEventListener('click', e => {
+            e.preventDefault();
+            const url = e.currentTarget.getAttribute('href');
+            if (typeof handleAddToCart === 'function') {
+                handleAddToCart(url, e.currentTarget);
+            }
+        });
 
-    const cards = Array.from(
-      productGrid.querySelectorAll('.st-card')
-    );
-
-    const dir = sortSelect.value;
-
-    // Quay về mặc định
-    if (!dir) {
-
-      originalCards.forEach(card => {
-        productGrid.appendChild(card);
-      });
-
-      return;
+        return div;
     }
 
-    // Sắp xếp theo giá
-    cards.sort((a, b) => {
+    function renderLoadMoreWidget() {
+        if (!loadMoreWrap || (totalCount === 0 && !isLoading)) {
+            if (loadMoreWrap) loadMoreWrap.innerHTML = '';
+            return;
+        }
 
-      const pa = parseInt(a.dataset.price || 0);
-      const pb = parseInt(b.dataset.price || 0);
+        const pct = totalCount > 0 ? Math.min(100, Math.round((currentOffset / totalCount) * 100)) : 0;
+        
+        if (isLastPage) {
+            loadMoreWrap.innerHTML = `
+                <div class="st-load-more-wrap">
+                    <div class="st-lm-progress">
+                        <div class="st-lm-progress-fill" style="width:100%"></div>
+                    </div>
+                    <div class="st-lm-counter">
+                        Đang hiển thị <strong>${currentOffset}</strong> / ${totalCount} sản phẩm
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;">
+                        <div class="st-lm-all-done">
+                            <i class="bi bi-check-circle"></i> Bạn đã xem hết tất cả sản phẩm
+                        </div>
+                        ${totalCount > currentLimit ? `
+                            <button class="st-lm-btn" id="collapseBtn">
+                                <span class="st-lm-btn-icon"><i class="bi bi-chevron-up"></i></span>
+                                <span>Thu gọn</span>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>`;
+            document.getElementById('collapseBtn')?.addEventListener('click', () => {
+                window.scrollTo({ top: productGrid.offsetTop - 100, behavior: 'smooth' });
+                fetchFilteredProducts();
+            });
+        } else {
+            loadMoreWrap.innerHTML = `
+                <div class="st-load-more-wrap">
+                    <div class="st-lm-progress">
+                        <div class="st-lm-progress-fill" style="width:${pct}%"></div>
+                    </div>
+                    <div class="st-lm-counter">
+                        Đang hiển thị <strong>${currentOffset}</strong> / ${totalCount} sản phẩm
+                    </div>
+                    <button class="st-lm-btn" id="loadMoreBtn">
+                        <span class="st-lm-btn-icon"><i class="bi bi-chevron-down"></i></span>
+                        <span>Xem thêm ${Math.min(totalCount - currentOffset, currentLimit)} sản phẩm</span>
+                    </button>
+                </div>`;
+            document.getElementById('loadMoreBtn')?.addEventListener('click', () => fetchFilteredProducts(true));
+        }
+    }
 
-      return dir === 'asc'
-        ? pa - pb
-        : pb - pa;
-    });
+    document.querySelectorAll('input[name="cat-filter"]').forEach(r => r.addEventListener('change', () => fetchFilteredProducts()));
+    document.querySelectorAll('input[name^="spec-filter-"]').forEach(r => r.addEventListener('change', () => fetchFilteredProducts()));
+    document.getElementById('btnPriceFilter')?.addEventListener('click', () => fetchFilteredProducts());
+    
+    const sortSelect = document.getElementById('sortProducts');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', () => {
+            const dir = sortSelect.value;
+            if (!dir) return fetchFilteredProducts();
+            const cards = Array.from(productGrid.querySelectorAll('.st-card'));
+            cards.sort((a,b) => {
+                const pa = parseInt(a.dataset.price);
+                const pb = parseInt(b.dataset.price);
+                return dir === 'asc' ? pa - pb : pb - pa;
+            });
+            cards.forEach(c => productGrid.appendChild(c));
+        });
+    }
 
-    cards.forEach(card => {
-      productGrid.appendChild(card);
-    });
-  });
-}
+    const style = document.createElement('style');
+    style.innerHTML = `@keyframes st-spin { to { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
   
     /* ════════════════════════════════════════════════════════════
        6. FILE UPLOAD PREVIEW
@@ -315,56 +428,59 @@ function showToast(msg, icon = '🛒') {
     toast._timer = setTimeout(() => toast.classList.remove('show'), 2800);
   }
   
-  // Add to cart qua AJAX: không reload trang
-  document.querySelectorAll('a[href*="addToCart"]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const url = btn.getAttribute('href');
-      if (!url) return;
+  async function handleAddToCart(url, btn) {
+    if (!url || !btn) return;
 
-      btn.style.pointerEvents = 'none';
-      btn.style.opacity = '0.7';
+    btn.style.pointerEvents = 'none';
+    btn.style.opacity = '0.7';
 
-      try {
-        const response = await fetch(url + (url.includes('?') ? '&ajax=1' : '?ajax=1'), {
-          method: 'GET',
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-          },
-          credentials: 'same-origin'
-        });
+    try {
+      const response = await fetch(url + (url.includes('?') ? '&ajax=1' : '?ajax=1'), {
+        method: 'GET',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        },
+        credentials: 'same-origin'
+      });
 
-        if (!response.ok) throw new Error('Request failed');
-        const data = await response.json();
-        if (!data || !data.success) throw new Error('Add failed');
+      if (!response.ok) throw new Error('Request failed');
+      const data = await response.json();
+      if (!data || !data.success) throw new Error('Add failed');
 
-        const cartBtn = document.getElementById('cartNavBtn');
-        if (cartBtn) {
-          cartBtn.classList.remove('bump');
-          void cartBtn.offsetWidth;
-          cartBtn.classList.add('bump');
-        }
-
-        const count = parseInt(data.cart_count || 0, 10);
-        const cartBadge = document.getElementById('cartBadge');
-        if (cartBadge) {
-          cartBadge.textContent = count;
-          cartBadge.style.display = count > 0 ? 'inline-flex' : 'none';
-        }
-
-        document.querySelectorAll('.st-dd-badge').forEach(el => {
-          el.textContent = count;
-          el.style.display = count > 0 ? 'inline-flex' : 'none';
-        });
-
-        showToast(data.message || 'Đã thêm vào giỏ hàng!', '✅');
-      } catch (err) {
-        showToast('Có lỗi khi thêm vào giỏ hàng', '⚠️');
-      } finally {
-        btn.style.pointerEvents = '';
-        btn.style.opacity = '';
+      const cartBtn = document.getElementById('cartNavBtn');
+      if (cartBtn) {
+        cartBtn.classList.remove('bump');
+        void cartBtn.offsetWidth;
+        cartBtn.classList.add('bump');
       }
+
+      const count = parseInt(data.cart_count || 0, 10);
+      const cartBadge = document.getElementById('cartBadge');
+      if (cartBadge) {
+        cartBadge.textContent = count;
+        cartBadge.style.display = count > 0 ? 'inline-flex' : 'none';
+      }
+
+      document.querySelectorAll('.st-dd-badge').forEach(el => {
+        el.textContent = count;
+        el.style.display = count > 0 ? 'inline-flex' : 'none';
+      });
+
+      showToast(data.message || 'Đã thêm vào giỏ hàng!', '✅');
+    } catch (err) {
+      showToast('Có lỗi khi thêm vào giỏ hàng', '⚠️');
+    } finally {
+      btn.style.pointerEvents = '';
+      btn.style.opacity = '';
+    }
+  }
+  
+  // Add to cart qua AJAX
+  document.querySelectorAll('a[href*="addToCart"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleAddToCart(btn.getAttribute('href'), btn);
     });
   });
   
@@ -450,9 +566,18 @@ if (placeOrderBtn) {
 /* ════════════════════════════════════════════════════════════
    MOBILE NAV TOGGLE
    ════════════════════════════════════════════════════════════ */
-document.getElementById('navToggle')?.addEventListener('click', () => {
-  document.getElementById('navLinks')?.classList.toggle('open');
-});
+const navLinks   = document.getElementById('navLinks');
+const navToggle  = document.getElementById('navToggle');
+const navBackdrop = document.getElementById('navBackdrop');
+
+function toggleMenu() {
+  navLinks?.classList.toggle('open');
+  navBackdrop?.classList.toggle('open');
+  document.body.style.overflow = navLinks?.classList.contains('open') ? 'hidden' : '';
+}
+
+navToggle?.addEventListener('click', toggleMenu);
+navBackdrop?.addEventListener('click', toggleMenu);
 
 /* ════════════════════════════════════════════════════════════
    AUTH — password toggle
@@ -664,175 +789,5 @@ dropZone?.addEventListener('drop', e => {
   if (file) handleAvatarFile(file);
 });
 
-/* ════════════════════════════════════════════════════════════
-   DÁN ĐOẠN NÀY VÀO CUỐI file public/js/main.js
-════════════════════════════════════════════════════════════ */
-
-/* LOAD MORE — hiển thị 10 SP/trang, nút "Xem thêm" ở giữa */
-(function () {
-  const PER_PAGE = 10;
-
-  const grid     = document.querySelector('.st-product-grid');
-  const wrapEl   = document.getElementById('loadMoreWrap');
-  const noResult = document.getElementById('noResultMsg');
-
-  if (!grid || !wrapEl) return;
-
-  let shown = PER_PAGE;
-
-  const allCards    = () => Array.from(grid.querySelectorAll('.st-card'));
-  const notFiltered = () => allCards().filter(c => c.dataset.filteredOut !== '1');
-
-  function renderWidget() {
-    const total     = notFiltered().length;
-    const remaining = total - shown;
-
-    if (total === 0) {
-      wrapEl.innerHTML = '';
-      if (noResult) noResult.style.display = 'block';
-      return;
-    }
-    if (noResult) noResult.style.display = 'none';
-
-    const pct = Math.min(100, Math.round((Math.min(shown, total) / total) * 100));
-
-    if (remaining <= 0) {
-      wrapEl.innerHTML = `
-        <div class="st-load-more-wrap">
-          <div class="st-lm-progress">
-            <div class="st-lm-progress-fill" style="width:100%"></div>
-          </div>
-          <div class="st-lm-counter">
-            Đang hiển thị <strong>${total}</strong> / ${total} sản phẩm
-          </div>
-          <div class="st-lm-all-done">
-            <i class="fa-solid fa-circle-check"></i>
-            Bạn đã xem hết tất cả sản phẩm
-          </div>
-        </div>`;
-      return;
-    }
-
-    wrapEl.innerHTML = `
-      <div class="st-load-more-wrap">
-        <div class="st-lm-progress">
-          <div class="st-lm-progress-fill" style="width:${pct}%"></div>
-        </div>
-        <div class="st-lm-counter">
-          Đang hiển thị <strong>${Math.min(shown, total)}</strong> / ${total} sản phẩm
-        </div>
-        <button class="st-lm-btn" id="loadMoreBtn">
-          <span class="st-lm-btn-icon">
-            <i class="fa-solid fa-arrow-down"></i>
-          </span>
-          <span>Xem thêm ${Math.min(remaining, PER_PAGE)} sản phẩm</span>
-        </button>
-      </div>`;
-
-    document.getElementById('loadMoreBtn')?.addEventListener('click', () => {
-      const btn = document.getElementById('loadMoreBtn');
-      if (btn) {
-        btn.classList.add('loading');
-        btn.querySelector('span:last-child').textContent = 'Đang tải...';
-      }
-      setTimeout(() => { shown += PER_PAGE; applyVisibility(); }, 280);
-    });
-  }
-
-  function applyVisibility() {
-    let count = 0;
-    allCards().forEach(card => {
-      if (card.dataset.filteredOut === '1') return;
-      card.style.display = count < shown ? '' : 'none';
-      count++;
-    });
-    renderWidget();
-  }
-
-  function resetPagination() {
-    shown = PER_PAGE;
-    allCards().forEach(card => {
-      card.dataset.filteredOut = card.style.display === 'none' ? '1' : '0';
-    });
-    applyVisibility();
-  }
-
-  document.getElementById('btnPriceFilter')
-    ?.addEventListener('click', () => setTimeout(resetPagination, 50));
-  document.getElementById('sortProducts')
-    ?.addEventListener('change', () => setTimeout(resetPagination, 50));
-  document.querySelectorAll('input[name="cat-filter"]')
-    .forEach(r => r.addEventListener('change', () => setTimeout(resetPagination, 50)));
-
-  applyVisibility();
-})();
-
-
-/* === APPEND VÀO CUỐI main.js === */
-(function(){
-  const PER=10,grid=document.querySelector('.st-product-grid'),
-        wrap=document.getElementById('loadMoreWrap'),
-        noRes=document.getElementById('noResultMsg');
-  if(!grid||!wrap)return;
-  let shown=PER;
-  const all=()=>Array.from(grid.querySelectorAll('.st-card'));
-  const vis=()=>all().filter(c=>c.dataset.fo!=='1');
-
-  function render(){
-    const tot=vis().length,rem=tot-shown,pct=Math.min(100,Math.round(Math.min(shown,tot)/tot*100));
-    if(!tot){wrap.innerHTML='';if(noRes)noRes.style.display='block';return;}
-    if(noRes)noRes.style.display='none';
-
-    if(rem<=0){
-      wrap.innerHTML=`<div class="st-load-more-wrap">
-        <div class="st-lm-progress"><div class="st-lm-progress-fill" style="width:100%"></div></div>
-        <div class="st-lm-counter">Đang hiển thị <strong>${tot}</strong> / ${tot} sản phẩm</div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;">
-          <div class="st-lm-all-done"><i class="fa-solid fa-circle-check"></i> Đã xem hết</div>
-          <button class="st-lm-btn" id="collapseBtn" style="padding:10px 24px;font-size:.88rem;">
-            <span class="st-lm-btn-icon"><i class="fa-solid fa-arrow-up"></i></span>
-            <span>Thu gọn</span>
-          </button>
-        </div>
-      </div>`;
-      document.getElementById('collapseBtn')?.addEventListener('click',()=>{
-        shown=PER;apply();
-        grid.scrollIntoView({behavior:'smooth',block:'start'});
-      });
-      return;
-    }
-
-    wrap.innerHTML=`<div class="st-load-more-wrap">
-      <div class="st-lm-progress"><div class="st-lm-progress-fill" style="width:${pct}%"></div></div>
-      <div class="st-lm-counter">Đang hiển thị <strong>${Math.min(shown,tot)}</strong> / ${tot} sản phẩm</div>
-      <button class="st-lm-btn" id="lmBtn">
-        <span class="st-lm-btn-icon"><i class="fa-solid fa-arrow-down"></i></span>
-        <span>Xem thêm ${Math.min(rem,PER)} sản phẩm</span>
-      </button>
-    </div>`;
-    document.getElementById('lmBtn')?.addEventListener('click',()=>{
-      const b=document.getElementById('lmBtn');
-      if(b){b.classList.add('loading');b.querySelector('span:last-child').textContent='Đang tải...';}
-      setTimeout(()=>{shown+=PER;apply();},280);
-    });
-  }
-
-  function apply(){
-    let n=0;
-    all().forEach(c=>{if(c.dataset.fo==='1')return;c.style.display=n<shown?'':'none';n++;});
-    render();
-  }
-
-  function reset(){
-    shown=PER;
-    all().forEach(c=>{c.dataset.fo=c.style.display==='none'?'1':'0';});
-    apply();
-  }
-
-  document.getElementById('btnPriceFilter')?.addEventListener('click',()=>setTimeout(reset,50));
-  document.getElementById('sortProducts')?.addEventListener('change',()=>setTimeout(reset,50));
-  document.querySelectorAll('input[name="cat-filter"]').forEach(r=>r.addEventListener('change',()=>setTimeout(reset,50)));
-  apply();
-})();
 
 
