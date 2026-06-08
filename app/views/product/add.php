@@ -29,7 +29,7 @@
         </div>
       <?php endif; ?>
 
-      <form method="POST" action="/Product/save" enctype="multipart/form-data" class="st-validate">
+      <form method="POST" action="/api/product" enctype="multipart/form-data" class="st-validate st-api-product-form" data-api-method="POST">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
 

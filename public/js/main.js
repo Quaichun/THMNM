@@ -249,7 +249,7 @@
                     <a href="/Product/show/${p.id}" class="btn btn-primary btn-sm"><i class="bi bi-eye"></i> Xem</a>
                     ${isAdmin ? `
                         <a href="/Product/edit/${p.id}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i></a>
-                        <a href="/Product/delete/${p.id}" class="btn btn-danger btn-sm btn-delete-confirm"><i class="bi bi-trash"></i></a>
+                        <a href="/api/product/${p.id}" class="btn btn-danger btn-sm btn-delete-confirm st-api-delete-product"><i class="bi bi-trash"></i></a>
                     ` : ''}
                     ${isLoggedIn && !isAdmin ? `
                         <a href="/Product/addToCart/${p.id}" class="btn btn-success btn-sm ajax-add-cart-dynamic"><i class="bi bi-cart-plus"></i> Thêm giỏ</a>
@@ -257,9 +257,12 @@
                 </div>
             </div>`;
         
+        bindProductDeleteButtons(div);
+        /*
         div.querySelector('.btn-delete-confirm')?.addEventListener('click', e => {
             if (!confirm('Bạn có chắc chắn muốn xóa?')) e.preventDefault();
         });
+        */
 
         div.querySelector('.ajax-add-cart-dynamic')?.addEventListener('click', e => {
             e.preventDefault();
@@ -379,7 +382,81 @@
     /* ════════════════════════════════════════════════════════════
        7. DELETE CONFIRM
     ════════════════════════════════════════════════════════════ */
-    document.querySelectorAll('.btn-delete-confirm').forEach(btn => {
+    function showProductApiErrors(errors) {
+      if (!errors) return 'Co loi xay ra.';
+      if (Array.isArray(errors)) return errors.join('\n');
+      return Object.values(errors).join('\n');
+    }
+
+    document.querySelectorAll('.st-api-product-form').forEach(form => {
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const oldHtml = submitBtn?.innerHTML;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Dang luu...';
+        }
+
+        try {
+          const response = await fetch(form.action, {
+            method: form.dataset.apiMethod || 'POST',
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+          });
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            alert(data.message || showProductApiErrors(data.errors));
+            return;
+          }
+
+          window.location.href = '/Product/list';
+        } catch (err) {
+          alert('Co loi khi goi API san pham.');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = oldHtml;
+          }
+        }
+      });
+    });
+
+    function bindProductDeleteButtons(scope = document) {
+      scope.querySelectorAll('.st-api-delete-product').forEach(btn => {
+        if (btn.dataset.boundApiDelete === '1') return;
+        btn.dataset.boundApiDelete = '1';
+        btn.addEventListener('click', async e => {
+          e.preventDefault();
+          if (!confirm('Ban co chac chan muon xoa?')) return;
+
+          try {
+            const response = await fetch(btn.href, {
+              method: 'DELETE',
+              headers: { 'Accept': 'application/json' },
+              credentials: 'same-origin'
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+              alert(data.message || showProductApiErrors(data.errors));
+              return;
+            }
+
+            window.location.href = '/Product/list';
+          } catch (err) {
+            alert('Co loi khi xoa san pham.');
+          }
+        });
+      });
+    }
+
+    bindProductDeleteButtons();
+
+    document.querySelectorAll('.btn-delete-confirm:not(.st-api-delete-product)').forEach(btn => {
       btn.addEventListener('click', e => {
         if (!confirm('Bạn có chắc chắn muốn xóa?')) e.preventDefault();
       });

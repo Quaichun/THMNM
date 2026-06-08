@@ -128,7 +128,13 @@ class ProductController
                 $image
             );
 
-            if ($edit) {
+            if (is_array($edit)) {
+                $errors = $edit;
+                $product = $this->productModel->getProductById($id);
+                $categories = (new CategoryModel($this->db))->getCategories();
+                $specs = $this->productModel->getSpecsByProductId($id);
+                include 'app/views/product/edit.php';
+            } elseif ($edit) {
                 // Save specs
                 $specs = $_POST['specs'] ?? [];
                 $this->productModel->saveSpecs($id, $specs);
@@ -142,7 +148,11 @@ class ProductController
     public function delete($id)
     {
         SessionHelper::requireAdmin();
-        if ($this->productModel->deleteProduct($id)) {
+        $deleted = $this->productModel->deleteProduct($id);
+        if (is_array($deleted)) {
+            SessionHelper::setFlash('error', reset($deleted));
+            header('Location: /Product');
+        } elseif ($deleted) {
             header('Location: /Product');
         } else {
             echo "Da xay ra loi khi xoa san pham.";

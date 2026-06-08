@@ -232,8 +232,8 @@ $bannerConfigs  = [
        class="btn btn-warning btn-sm">
       <i class="bi bi-pencil"></i>
     </a>
-    <a href="/Product/delete/<?php echo $p->id; ?>"
-       class="btn btn-danger btn-sm btn-delete-confirm">
+    <a href="/api/product/<?php echo $p->id; ?>"
+       class="btn btn-danger btn-sm btn-delete-confirm st-api-delete-product">
       <i class="bi bi-trash"></i>
     </a>
   <?php endif; ?>

@@ -31,7 +31,7 @@
         </div>
       <?php endif; ?>
 
-      <form method="POST" action="/Product/update" enctype="multipart/form-data" class="st-validate">
+      <form method="POST" action="/api/product/<?php echo $product->id; ?>" enctype="multipart/form-data" class="st-validate st-api-product-form" data-api-method="PUT">
         <input type="hidden" name="id" value="<?php echo $product->id; ?>">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
@@ -160,7 +160,7 @@
           <a href="/Product/list" class="btn btn-secondary btn-lg">
             <i class="bi bi-arrow-left"></i> Huỷ
           </a>
-          <a href="/Product/delete/<?php echo $product->id; ?>" class="btn btn-danger btn-sm btn-delete-confirm" style="margin-left:auto;">
+          <a href="/api/product/<?php echo $product->id; ?>" class="btn btn-danger btn-sm btn-delete-confirm st-api-delete-product" style="margin-left:auto;">
             <i class="bi bi-trash"></i> Xoá sản phẩm
           </a>
         </div>

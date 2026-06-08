@@ -10,13 +10,12 @@ class CategoryController
 
     public function __construct()
     {
-        $this->db            = (new Database())->getConnection();
+        $this->db = (new Database())->getConnection();
         $this->categoryModel = new CategoryModel($this->db);
         SessionHelper::start();
         SessionHelper::tryRememberLogin($this->db);
     }
 
-    /* ── PUBLIC: xem danh mục ── */
     public function index()
     {
         $categories = $this->categoryModel->getCategories();
@@ -29,7 +28,6 @@ class CategoryController
         include 'app/views/category/list.php';
     }
 
-    /* ── ADMIN ONLY ── */
     public function add()
     {
         SessionHelper::requireAdmin();
@@ -41,13 +39,16 @@ class CategoryController
         SessionHelper::requireAdmin();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim($_POST['name'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+
             if (!$name) {
-                $errors = ['Tên danh mục không được để trống.'];
+                $errors = ['Ten danh muc khong duoc de trong.'];
                 include 'app/views/category/add.php';
                 return;
             }
-            $this->categoryModel->addCategory($name);
-            SessionHelper::setFlash('success', 'Thêm danh mục thành công!');
+
+            $this->categoryModel->addCategory($name, $description);
+            SessionHelper::setFlash('success', 'Them danh muc thanh cong!');
             header('Location: /Category/list');
         }
     }
@@ -57,7 +58,7 @@ class CategoryController
         SessionHelper::requireAdmin();
         $category = $this->categoryModel->getCategoryById($id);
         if (!$category) {
-            SessionHelper::setFlash('error', 'Không tìm thấy danh mục.');
+            SessionHelper::setFlash('error', 'Khong tim thay danh muc.');
             header('Location: /Category/list');
             return;
         }
@@ -68,16 +69,19 @@ class CategoryController
     {
         SessionHelper::requireAdmin();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $id   = $_POST['id'];
+            $id = $_POST['id'];
             $name = trim($_POST['name'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+
             if (!$name) {
-                $errors   = ['Tên danh mục không được để trống.'];
+                $errors = ['Ten danh muc khong duoc de trong.'];
                 $category = $this->categoryModel->getCategoryById($id);
                 include 'app/views/category/edit.php';
                 return;
             }
-            $this->categoryModel->updateCategory($id, $name);
-            SessionHelper::setFlash('success', 'Cập nhật danh mục thành công!');
+
+            $this->categoryModel->updateCategory($id, $name, $description);
+            SessionHelper::setFlash('success', 'Cap nhat danh muc thanh cong!');
             header('Location: /Category/list');
         }
     }
@@ -86,7 +90,7 @@ class CategoryController
     {
         SessionHelper::requireAdmin();
         $this->categoryModel->deleteCategory($id);
-        SessionHelper::setFlash('success', 'Đã xóa danh mục.');
+        SessionHelper::setFlash('success', 'Da xoa danh muc.');
         header('Location: /Category/list');
     }
 }

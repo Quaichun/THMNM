@@ -12,7 +12,7 @@ class ProductModel
 
     public function getProducts()
     {
-        $query = "SELECT p.id, p.name, p.description, p.price, p.image, c.name as category_name
+        $query = "SELECT p.id, p.name, p.description, p.price, p.image, p.category_id, c.name as category_name
                   FROM " . $this->table_name . " p
                   LEFT JOIN category c ON p.category_id = c.id";
 
@@ -56,6 +56,10 @@ class ProductModel
             $errors['price'] = 'Giá sản phẩm không hợp lệ';
         }
 
+        if ($category_id !== null && $category_id !== '' && !$this->categoryExists($category_id)) {
+            $errors['category_id'] = 'Danh muc khong hop le';
+        }
+
         if (count($errors) > 0) {
             return $errors;
         }
@@ -68,9 +72,9 @@ class ProductModel
 
         $stmt->bindParam(':name', $name);
         $stmt->bindParam(':description', $description);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':category_id', $category_id);
-        $stmt->bindParam(':image', $image);
+        $stmt->bindValue(':price', $price);
+        $stmt->bindValue(':category_id', $category_id ?: null, $category_id ? PDO::PARAM_INT : PDO::PARAM_NULL);
+        $stmt->bindValue(':image', $image);
 
         if ($stmt->execute()) {
             return $this->conn->lastInsertId();
@@ -87,6 +91,28 @@ class ProductModel
         $category_id,
         $image = null
     ) {
+        $errors = [];
+
+        if (trim((string)$name) === '') {
+            $errors['name'] = 'Ten san pham khong duoc de trong';
+        }
+
+        if (trim((string)$description) === '') {
+            $errors['description'] = 'Mo ta khong duoc de trong';
+        }
+
+        if (!is_numeric($price) || $price < 0) {
+            $errors['price'] = 'Gia san pham khong hop le';
+        }
+
+        if ($category_id !== null && $category_id !== '' && !$this->categoryExists($category_id)) {
+            $errors['category_id'] = 'Danh muc khong hop le';
+        }
+
+        if (count($errors) > 0) {
+            return $errors;
+        }
+
         $query = "UPDATE " . $this->table_name . "
                   SET name = :name, description = :description, price = :price, 
                       category_id = :category_id";
@@ -101,9 +127,9 @@ class ProductModel
 
         $stmt->bindParam(':name', $name);
         $stmt->bindParam(':description', $description);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':category_id', $category_id);
-        $stmt->bindParam(':id', $id);
+        $stmt->bindValue(':price', $price);
+        $stmt->bindValue(':category_id', $category_id ?: null, $category_id ? PDO::PARAM_INT : PDO::PARAM_NULL);
+        $stmt->bindValue(':id', (int)$id, PDO::PARAM_INT);
 
         if ($image) {
             $stmt->bindParam(':image', $image);
@@ -118,16 +144,63 @@ class ProductModel
 
     public function deleteProduct($id)
     {
+        if ($this->hasRelatedRecords($id)) {
+            return [
+                'constraint' => 'Khong the xoa san pham vi da co du lieu lien quan.'
+            ];
+        }
+
         $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
 
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':id', $id);
+        $stmt->bindValue(':id', (int)$id, PDO::PARAM_INT);
 
         if ($stmt->execute()) {
             return true;
         }
 
         return false;
+    }
+
+    private function categoryExists($category_id)
+    {
+        $sql = "SELECT COUNT(*) FROM category WHERE id = :id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':id', (int)$category_id, PDO::PARAM_INT);
+        $stmt->execute();
+        return (int)$stmt->fetchColumn() > 0;
+    }
+
+    private function hasRelatedRecords($id)
+    {
+        $relations = [
+            ['table' => 'order_details', 'column' => 'product_id']
+        ];
+
+        foreach ($relations as $relation) {
+            if (!$this->tableExists($relation['table'])) {
+                continue;
+            }
+
+            $sql = "SELECT COUNT(*) FROM {$relation['table']} WHERE {$relation['column']} = :id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':id', (int)$id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            if ((int)$stmt->fetchColumn() > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function tableExists($table)
+    {
+        $stmt = $this->conn->prepare("SHOW TABLES LIKE :table_name");
+        $stmt->bindValue(':table_name', $table);
+        $stmt->execute();
+        return (bool)$stmt->fetchColumn();
     }
 
     public function getSpecsByProductId($id)
@@ -198,7 +271,12 @@ class ProductModel
         $stmt->bindParam(':pid', $productId);
 
         foreach ($specs as $name => $value) {
-            if (empty($value)) continue;
+            if (is_array($value)) {
+                $name = $value['name'] ?? '';
+                $value = $value['value'] ?? '';
+            }
+
+            if (trim((string)$name) === '' || trim((string)$value) === '') continue;
             $stmt->bindParam(':name', $name);
             $stmt->bindParam(':value', $value);
             $stmt->execute();

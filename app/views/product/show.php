@@ -91,8 +91,8 @@ window.ST_CURRENT_PRODUCT = {
            class="btn btn-warning btn-lg">
           <i class="bi bi-pencil"></i> Sửa
         </a>
-        <a href="/Product/delete/<?php echo $product->id; ?>"
-           class="btn btn-danger btn-sm btn-delete-confirm">
+        <a href="/api/product/<?php echo $product->id; ?>"
+           class="btn btn-danger btn-sm btn-delete-confirm st-api-delete-product">
           <i class="bi bi-trash"></i>
         </a>
       <?php endif; ?>
