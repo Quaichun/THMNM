@@ -31,7 +31,7 @@
         </div>
       <?php endif; ?>
 
-      <form method="POST" action="/Product/update" enctype="multipart/form-data" class="st-validate">
+      <form id="editProductForm" enctype="multipart/form-data" class="st-validate">
         <input type="hidden" name="id" value="<?php echo $product->id; ?>">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
@@ -85,23 +85,19 @@
             <label class="form-label">
               <i class="bi bi-image" style="color:var(--primary)"></i> Hình ảnh
             </label>
-            <input type="hidden" name="existing_image" value="<?php echo $product->image; ?>">
-
+            
             <div class="st-img-preview-wrap <?php echo $product->image ? 'has-img' : ''; ?>">
               <input type="file" id="imageInput" name="image" accept="image/*">
 
               <?php if ($product->image): ?>
-                <img class="st-existing-preview"
-                     src="/<?php echo htmlspecialchars($product->image, ENT_QUOTES, 'UTF-8'); ?>"
-                     alt="Ảnh hiện tại"
-                     style="max-height:160px;border-radius:8px;display:block;margin:auto;">
-              <?php else: ?>
-                <div class="st-upload-placeholder">
-                  
-                  <p style="font-size:.78rem;margin-top:4px;">JPG, PNG, GIF – tối đa 10MB</p>
+                <div style="text-align:center; margin-top:10px;">
+                  <img class="st-existing-preview"
+                       src="/<?php echo htmlspecialchars($product->image, ENT_QUOTES, 'UTF-8'); ?>"
+                       alt="Ảnh hiện tại"
+                       style="max-height:160px;border-radius:8px;display:inline-block;">
+                  <p style="font-size:0.8rem; color: #666;">Ảnh hiện tại</p>
                 </div>
               <?php endif; ?>
-
             </div>
           </div>
 
@@ -134,38 +130,77 @@
 
         </div><!-- /grid -->
 
-        <script>
-          let specIndex = <?php echo !empty($specs) ? count($specs) : 1; ?>;
-          document.getElementById('addSpecBtn').onclick = function() {
-            const container = document.getElementById('specsContainer');
-            const row = document.createElement('div');
-            row.className = 'spec-row';
-            row.style.display = 'flex';
-            row.style.gap = '10px';
-            row.style.marginBottom = '10px';
-            row.innerHTML = `
-                <input type="text" name="specs[${specIndex}][name]" placeholder="Tên thông số" class="form-control">
-                <input type="text" name="specs[${specIndex}][value]" placeholder="Giá trị" class="form-control">
-                <button type="button" class="btn btn-outline-danger remove-spec" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>
-            `;
-            container.appendChild(row);
-            specIndex++;
-          };
-        </script>
-
         <div class="st-form-actions" style="margin-top:24px;">
-          <button type="submit" class="btn btn-warning btn-lg">
+          <button type="submit" class="btn btn-warning btn-lg" id="btnUpdate">
             <i class="bi bi-save"></i> Lưu thay đổi
           </button>
           <a href="/Product/list" class="btn btn-secondary btn-lg">
             <i class="bi bi-arrow-left"></i> Huỷ
           </a>
-          <a href="/Product/delete/<?php echo $product->id; ?>" class="btn btn-danger btn-sm btn-delete-confirm" style="margin-left:auto;">
+          <button type="button" id="btnDelete" class="btn btn-danger btn-sm" style="margin-left:auto;">
             <i class="bi bi-trash"></i> Xoá sản phẩm
-          </a>
+          </button>
         </div>
 
       </form>
+
+      <script>
+        // Spec logic
+        let specIndex = <?php echo !empty($specs) ? count($specs) : 1; ?>;
+        document.getElementById('addSpecBtn').onclick = function() {
+          const container = document.getElementById('specsContainer');
+          const row = document.createElement('div');
+          row.className = 'spec-row'; row.style.display = 'flex'; row.style.gap = '10px'; row.style.marginBottom = '10px';
+          row.innerHTML = `<input type="text" name="specs[${specIndex}][name]" placeholder="Tên" class="form-control"><input type="text" name="specs[${specIndex}][value]" placeholder="Giá trị" class="form-control"><button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>`;
+          container.appendChild(row);
+          specIndex++;
+        };
+
+        const productId = <?php echo (int)$product->id; ?>;
+
+        // Submit via API
+        document.getElementById('editProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnUpdate');
+            const formData = new FormData(e.target);
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang lưu...';
+
+            try {
+                const res = await apiFetch(`/api/product/update/${productId}`, {
+                    method: 'POST', // Dùng POST để PHP nhận multipart/form-data dễ dàng hơn
+                    body: formData
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('Đã cập nhật sản phẩm!', '✅');
+                    setTimeout(() => window.location.href = '/Product/list', 1500);
+                } else {
+                    alert(result.message || 'Lỗi khi cập nhật');
+                }
+            } catch (err) {
+                alert('Lỗi kết nối');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-save"></i> Lưu thay đổi';
+            }
+        });
+
+        // Delete via API
+        document.getElementById('btnDelete').addEventListener('click', async () => {
+            if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return;
+            try {
+                const res = await apiFetch(`/api/product/destroy/${productId}`, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('Đã xóa sản phẩm!', '🗑️');
+                    setTimeout(() => window.location.href = '/Product/list', 1200);
+                } else alert(result.message);
+            } catch (err) { alert('Lỗi kết nối'); }
+        });
+      </script>
+
     </div>
   </div>
 </div>

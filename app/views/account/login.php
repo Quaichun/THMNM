@@ -75,11 +75,49 @@ $verifyLink = SessionHelper::getFlash('verify_link');
         <a href="/Account/forgotPassword" style="font-size:.9rem">Quên mật khẩu?</a>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">
+      <button type="submit" class="btn btn-primary btn-lg w-100 mt-2" id="btnLogin">
         <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
       </button>
 
     </form>
+
+    <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnLogin');
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang xử lý...';
+
+        try {
+            // Call API login
+            const res = await fetch('/api/account/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                setAuthToken(result.token);
+                // Also call regular login to sync session (optional but good for compatibility)
+                await fetch('/Account/login', { method: 'POST', body: formData });
+                window.location.href = '/Product';
+            } else {
+                alert(result.message || 'Đăng nhập thất bại');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Có lỗi xảy ra, vui lòng thử lại');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> Đăng nhập';
+        }
+    });
+    </script>
+
 
     <div class="st-auth-footer">
       Chưa có tài khoản?

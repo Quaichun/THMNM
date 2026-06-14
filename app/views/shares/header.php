@@ -28,11 +28,71 @@ $avatarUrl  = !empty($avatar)
   <script>
     window.ST_USER = {
       isLoggedIn: <?php echo $isLoggedIn ? 'true' : 'false'; ?>,
-      isAdmin: <?php echo $isAdmin ? 'true' : 'false'; ?>
+      isAdmin: <?php echo $isAdmin ? 'true' : 'false'; ?>,
+      username: <?php echo json_encode($username); ?>
     };
+
+    // JWT & Global API Helpers
+    const API_BASE = '/api';
+
+    function setAuthToken(token) {
+        if (token) localStorage.setItem('st_auth_token', token);
+        else localStorage.removeItem('st_auth_token');
+    }
+
+    function getAuthToken() {
+        return localStorage.getItem('st_auth_token');
+    }
+
+    async function apiFetch(endpoint, options = {}) {
+        const token = getAuthToken();
+        const headers = {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(options.headers || {})
+        };
+
+        // Nếu body không phải FormData, mặc định là JSON
+        if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        const lb = document.getElementById('loading-bar');
+        if (lb) { lb.style.width = '35%'; lb.style.opacity = '1'; }
+
+        const res = await fetch(endpoint.startsWith('http') ? endpoint : endpoint, {
+            ...options,
+            headers
+        });
+
+        if (lb) { 
+            lb.style.width = '100%'; 
+            setTimeout(() => { lb.style.opacity = '0'; lb.style.width = '0'; }, 300); 
+        }
+
+        if (res.status === 401 && !options.skipAuthRedirect) {
+            console.warn('Unauthorized or Token Expired');
+            setAuthToken(null);
+            // Optional: redirect to login if not already there
+            if (!window.location.pathname.includes('/Account/login')) {
+                window.location.href = '/Account/login?expired=1';
+            }
+        }
+
+        return res;
+    }
+
+    // Global Logout Hook for Header
+    function handleLogout() {
+        setAuthToken(null);
+        window.location.href = '/Account/logout';
+    }
   </script>
+
 </head>
-<body>
+<body class="st-smooth-load">
+
+<div id="loading-bar" style="position:fixed; top:0; left:0; width:0; height:3px; background:var(--accent); z-index:9999; transition: width 0.3s ease, opacity 0.3s ease; opacity:0; pointer-events:none;"></div>
 
 <nav class="st-navbar">
 
@@ -82,6 +142,13 @@ $avatarUrl  = !empty($avatar)
   </ul>
 </li>
 
+<li class="st-nav-item">
+  <a href="/Product/jqueryDemo" class="st-nav-link">
+    <i class="bi bi-code-square"></i> jQuery Demo
+  </a>
+</li>
+
+
     <!-- Quản lý — chỉ admin -->
     <?php if ($isAdmin): ?>
     <li class="st-dropdown">
@@ -121,7 +188,7 @@ $avatarUrl  = !empty($avatar)
         <i class="bi bi-cart3"></i> Giỏ hàng
 
         <?php if ($cartCount > 0): ?>
-          <span class="st-dd-badge">
+          <span class="st-dd-badge" id="cartDropdownBadge">
             <?php echo $cartCount; ?>
           </span>
         <?php endif; ?>
@@ -212,12 +279,13 @@ $avatarUrl  = !empty($avatar)
           <li class="st-dd-divider"></li>
 
           <li>
-            <a href="/Account/logout"
-               onclick="return confirm('Bạn có chắc muốn đăng xuất?')"
+            <a href="javascript:void(0)"
+               onclick="if(confirm('Bạn có chắc muốn đăng xuất?')) handleLogout()"
                style="color:#ef4444">
               <i class="bi bi-box-arrow-right"></i> Đăng xuất
             </a>
           </li>
+
 
         <?php else: ?>
 

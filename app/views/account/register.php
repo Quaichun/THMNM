@@ -88,11 +88,100 @@
         <div class="st-pw-match" id="pwMatch"></div>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">
+      <button type="submit" class="btn btn-primary btn-lg w-100 mt-2" id="btnRegister">
         <i class="bi bi-person-check"></i> Tạo tài khoản
       </button>
 
     </form>
+
+    <script>
+    // --- Password Strength & Match ---
+    const pw1 = document.getElementById('pw1');
+    const pw2 = document.getElementById('pw2');
+    const bar = document.getElementById('pwStrengthBar');
+    const label = document.getElementById('pwStrengthLabel');
+    const match = document.getElementById('pwMatch');
+
+    pw1?.addEventListener('input', () => {
+        const val = pw1.value;
+        let score = 0;
+        if (val.length >= 6) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+
+        const maps = [
+            { w: '20%', c: '#ef4444', t: 'Rất yếu' },
+            { w: '40%', c: '#f59e0b', t: 'Yếu' },
+            { w: '60%', c: '#3b82f6', t: 'Trung bình' },
+            { w: '80%', c: '#10b981', t: 'Mạnh' },
+            { w: '100%', c: '#059669', t: 'Rất mạnh' }
+        ];
+
+        if (!val) {
+            bar.style.width = '0';
+            label.textContent = '';
+        } else {
+            const m = maps[score];
+            bar.style.width = m.w;
+            bar.style.background = m.c;
+            label.textContent = m.t;
+            label.style.color = m.c;
+        }
+    });
+
+    const checkMatch = () => {
+        if (!pw2.value) { match.textContent = ''; return; }
+        if (pw1.value === pw2.value) {
+            match.textContent = '✅ Mật khẩu xác nhận khớp';
+            match.style.color = 'var(--success)';
+        } else {
+            match.textContent = '❌ Mật khẩu xác nhận không khớp';
+            match.style.color = 'var(--danger)';
+        }
+    };
+    pw1?.addEventListener('input', checkMatch);
+    pw2?.addEventListener('input', checkMatch);
+
+    // --- Form Submit ---
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (pw1.value !== pw2.value) {
+            alert('Mật khẩu xác nhận không khớp');
+            return;
+        }
+
+        const btn = document.getElementById('btnRegister');
+        const formData = new FormData(e.target);
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang xử lý...';
+
+        try {
+            // Use the traditional POST for registration to ensure email is sent
+            // (The API version doesn't handle MailHelper yet)
+            const res = await fetch('/Account/register', {
+                method: 'POST',
+                body: formData
+            });
+
+            // If the server redirects, it means success (AccountController redirects to login)
+            if (res.redirected) {
+                window.location.href = res.url;
+            } else {
+                // If not redirected, there might be errors (displayed in the PHP view)
+                // We reload to show errors
+                e.target.submit(); 
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Có lỗi xảy ra, vui lòng thử lại');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-person-check"></i> Tạo tài khoản';
+        }
+    });
+    </script>
+
 
     <div class="st-auth-footer">
       Đã có tài khoản?

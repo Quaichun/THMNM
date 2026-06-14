@@ -47,12 +47,12 @@ $totalQty = array_sum(array_column($cart, 'quantity'));
     <div class="st-cart-layout">
 
       <!-- ─── Left: product list ─── -->
-      <div class="st-cart-list">
+      <div class="st-cart-list" id="cartListContainer">
 
         <?php foreach ($cart as $id => $item):
           $subtotal = $item['price'] * $item['quantity'];
         ?>
-        <div class="st-cart-row fade-up" id="cart-row-<?php echo $id; ?>">
+        <div class="st-cart-row fade-up" id="cart-item-<?php echo $id; ?>">
 
           <!-- Image -->
           <div class="st-cart-img-wrap">
@@ -75,24 +75,24 @@ $totalQty = array_sum(array_column($cart, 'quantity'));
 
             <!-- Quantity control -->
             <div class="st-qty-wrap">
-              <a href="/Product/decreaseQuantity/<?php echo $id; ?>"
-                 class="st-qty-btn st-qty-minus" title="Giảm">−</a>
-              <span class="st-qty-val"><?php echo $item['quantity']; ?></span>
-              <a href="/Product/increaseQuantity/<?php echo $id; ?>"
-                 class="st-qty-btn st-qty-plus" title="Tăng">+</a>
+              <button type="button" onclick="updateQty(<?php echo $id; ?>, -1)"
+                  class="st-qty-btn st-qty-minus" title="Giảm">−</button>
+              <span class="st-qty-val" id="qty-<?php echo $id; ?>"><?php echo $item['quantity']; ?></span>
+              <button type="button" onclick="updateQty(<?php echo $id; ?>, 1)"
+                  class="st-qty-btn st-qty-plus" title="Tăng">+</button>
             </div>
           </div>
 
           <!-- Subtotal + delete -->
           <div class="st-cart-right">
-            <div class="st-cart-subtotal">
+            <div class="st-cart-subtotal" id="line-total-<?php echo $id; ?>">
               <?php echo number_format($subtotal, 0, ',', '.'); ?>₫
             </div>
-            <a href="/Product/removeFromCart/<?php echo $id; ?>"
-               class="st-cart-remove btn-delete-confirm"
+            <button type="button" onclick="removeItem(<?php echo $id; ?>)"
+               class="st-cart-remove"
                title="Xóa sản phẩm này">
               <i class="bi bi-x-circle-fill"></i>
-            </a>
+            </button>
           </div>
 
         </div>
@@ -110,11 +110,11 @@ $totalQty = array_sum(array_column($cart, 'quantity'));
         <div class="st-summary-rows">
           <div class="st-summary-row">
             <span>Số lượng sản phẩm</span>
-            <span><?php echo $totalQty; ?> sản phẩm</span>
+            <span id="summary-qty"><?php echo $totalQty; ?> sản phẩm</span>
           </div>
           <div class="st-summary-row">
             <span>Tạm tính</span>
-            <span><?php echo number_format($total, 0, ',', '.'); ?>₫</span>
+            <span id="summary-subtotal"><?php echo number_format($total, 0, ',', '.'); ?>₫</span>
           </div>
           <div class="st-summary-row">
             <span>Phí vận chuyển</span>
@@ -130,7 +130,7 @@ $totalQty = array_sum(array_column($cart, 'quantity'));
 
         <div class="st-summary-total-row">
           <span>Tổng thanh toán</span>
-          <span class="st-summary-total-price">
+          <span class="st-summary-total-price" id="summary-total">
             <?php echo number_format($total, 0, ',', '.'); ?>₫
           </span>
         </div>
@@ -161,6 +161,97 @@ $totalQty = array_sum(array_column($cart, 'quantity'));
 
     </div>
     <?php endif; ?>
+
+  </div>
+</div>
+
+<script>
+async function updateQty(id, delta) {
+    const action = delta > 0 ? 'increase' : 'decrease';
+    try {
+        const res = await apiFetch(`/api/cart/${action}/${id}`, { method: 'POST' });
+        const result = await res.json();
+        if (result.success) {
+            refreshCartUI(result);
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function removeItem(id) {
+    if (!confirm('Xóa sản phẩm này?')) return;
+    try {
+        const res = await apiFetch(`/api/cart/destroy/${id}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) {
+            const row = document.getElementById(`cart-item-${id}`);
+            if (row) row.remove();
+            refreshCartUI(result);
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function clearCart() {
+    if (!confirm('Xóa toàn bộ giỏ hàng?')) return;
+    try {
+        const res = await apiFetch('/api/cart/clear', { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) {
+            location.reload(); // Đơn giản nhất là reload khi dọn sạch
+        }
+    } catch (e) { console.error(e); }
+}
+
+function refreshCartUI(data) {
+    // Cập nhật số lượng trên Badge (nếu có)
+    const badge = document.getElementById('cartBadge');
+    if (badge) {
+        badge.textContent = data.cart_count;
+        badge.style.display = data.cart_count > 0 ? 'inline-flex' : 'none';
+        badge.classList.add('bump');
+        setTimeout(() => badge.classList.remove('bump'), 300);
+    }
+
+    // Cập nhật các dòng item
+    if (data.cart) {
+        // Collect all currently rendered IDs
+        const existingRows = document.querySelectorAll('.st-cart-row');
+        const serverIds = data.cart.map(item => item.product_id.toString());
+        
+        existingRows.forEach(row => {
+            const rowId = row.id.replace('cart-item-', '');
+            if (!serverIds.includes(rowId)) {
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 300);
+            }
+        });
+
+        data.cart.forEach(item => {
+            const qtyEl = document.getElementById(`qty-${item.product_id}`);
+            if (qtyEl) qtyEl.textContent = item.quantity;
+            
+            const lineTotalEl = document.getElementById(`line-total-${item.product_id}`);
+            if (lineTotalEl) lineTotalEl.textContent = parseInt(item.line_total).toLocaleString('vi-VN') + '₫';
+        });
+
+        // Nếu giỏ hàng trống sau khi xóa item cuối
+        if (data.cart.length === 0) {
+            location.reload();
+            return;
+        }
+    }
+
+    // Cập nhật Summary
+    const summaryQty = document.getElementById('summary-qty');
+    if (summaryQty) summaryQty.textContent = `${data.cart_count} sản phẩm`;
+
+    const summarySubtotal = document.getElementById('summary-subtotal');
+    if (summarySubtotal) summarySubtotal.textContent = parseInt(data.subtotal).toLocaleString('vi-VN') + '₫';
+
+    const summaryTotal = document.getElementById('summary-total');
+    if (summaryTotal) summaryTotal.textContent = parseInt(data.subtotal).toLocaleString('vi-VN') + '₫';
+}
+</script>
+
 
   </div>
 </div>

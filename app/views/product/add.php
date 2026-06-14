@@ -29,7 +29,7 @@
         </div>
       <?php endif; ?>
 
-      <form method="POST" action="/Product/save" enctype="multipart/form-data" class="st-validate">
+      <form id="addProductForm" enctype="multipart/form-data" class="st-validate">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
 
@@ -78,10 +78,10 @@
           <!-- Image upload -->
           <div style="grid-column:1/-1;">
             <label class="form-label">
-              <i class="bi bi-image" style="color:var(--primary)"></i> Hình ảnh
+              <i class="bi bi-image" style="color:var(--primary)"></i> Hình ảnh <span style="color:var(--danger)">*</span>
             </label>
             <div class="st-img-preview-wrap">
-              <input type="file" id="imageInput" name="image" accept="image/*">
+              <input type="file" id="imageInput" name="image" accept="image/*" required>
             </div>
           </div>
 
@@ -102,27 +102,8 @@
 
         </div><!-- /grid -->
 
-        <script>
-          let specIndex = 1;
-          document.getElementById('addSpecBtn').onclick = function() {
-            const container = document.getElementById('specsContainer');
-            const row = document.createElement('div');
-            row.className = 'spec-row';
-            row.style.display = 'flex';
-            row.style.gap = '10px';
-            row.style.marginBottom = '10px';
-            row.innerHTML = `
-                <input type="text" name="specs[${specIndex}][name]" placeholder="Tên thông số" class="form-control">
-                <input type="text" name="specs[${specIndex}][value]" placeholder="Giá trị" class="form-control">
-                <button type="button" class="btn btn-outline-danger remove-spec" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>
-            `;
-            container.appendChild(row);
-            specIndex++;
-          };
-        </script>
-
         <div class="st-form-actions" style="margin-top:24px;">
-          <button type="submit" class="btn btn-primary btn-lg">
+          <button type="submit" class="btn btn-primary btn-lg" id="btnSubmit">
             <i class="bi bi-plus-circle"></i> Thêm sản phẩm
           </button>
           <a href="/Product/list" class="btn btn-secondary btn-lg">
@@ -131,6 +112,65 @@
         </div>
 
       </form>
+
+      <script>
+        // Logic thêm dòng thông số
+        let specIndex = 1;
+        document.getElementById('addSpecBtn').onclick = function() {
+          const container = document.getElementById('specsContainer');
+          const row = document.createElement('div');
+          row.className = 'spec-row';
+          row.style.display = 'flex';
+          row.style.gap = '10px';
+          row.style.marginBottom = '10px';
+          row.innerHTML = `
+              <input type="text" name="specs[${specIndex}][name]" placeholder="Tên thông số" class="form-control">
+              <input type="text" name="specs[${specIndex}][value]" placeholder="Giá trị" class="form-control">
+              <button type="button" class="btn btn-outline-danger remove-spec" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>
+          `;
+          container.appendChild(row);
+          specIndex++;
+        };
+
+        // Gửi dữ liệu qua API
+        document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById('btnSubmit');
+          const formData = new FormData(e.target);
+          
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang tải lên...';
+
+          try {
+            const res = await apiFetch('/api/product/store', {
+              method: 'POST',
+              headers: {
+                // Khi dùng FormData, trình duyệt tự set Content-Type 'multipart/form-data'
+                // và boundary, nên ta không ép 'application/json' ở đây.
+                // apiFetch trong header.php đã được thiết kế linh hoạt.
+              },
+              body: formData 
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                showToast('Đã thêm sản phẩm thành công!', '✅');
+                setTimeout(() => window.location.href = '/Product/list', 1500);
+            } else {
+                let msg = result.message || 'Lỗi khi thêm sản phẩm';
+                if (result.errors) msg = Object.values(result.errors).join('\n');
+                alert(msg);
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Có lỗi kết nối, vui lòng thử lại');
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-plus-circle"></i> Thêm sản phẩm';
+          }
+        });
+      </script>
+
     </div>
   </div>
 </div>

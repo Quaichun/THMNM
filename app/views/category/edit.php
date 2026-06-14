@@ -19,7 +19,7 @@
     </div>
 
     <div class="st-form-body">
-      <form method="POST" action="/Category/update" class="st-validate">
+      <form id="editCategoryForm" class="st-validate">
         <input type="hidden" name="id" value="<?php echo $category->id; ?>">
 
         <div style="display:flex;flex-direction:column;gap:20px;">
@@ -43,18 +43,64 @@
         </div>
 
         <div class="st-form-actions" style="margin-top:24px;">
-          <button type="submit" class="btn btn-warning btn-lg">
+          <button type="submit" class="btn btn-warning btn-lg" id="btnUpdate">
             <i class="bi bi-save"></i> Lưu thay đổi
           </button>
           <a href="/Category/list" class="btn btn-secondary btn-lg">
             <i class="bi bi-arrow-left"></i> Huỷ
           </a>
-          <a href="/Category/delete/<?php echo $category->id; ?>" class="btn btn-danger btn-sm btn-delete-confirm" style="margin-left:auto;">
+          <button type="button" id="btnDelete" class="btn btn-danger btn-sm" style="margin-left:auto;">
             <i class="bi bi-trash"></i> Xoá
-          </a>
+          </button>
         </div>
 
       </form>
+
+      <script>
+      const categoryId = <?php echo (int)$category->id; ?>;
+      
+      document.getElementById('editCategoryForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById('btnUpdate');
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData.entries());
+
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang lưu...';
+
+          try {
+              const res = await apiFetch(`/api/category/update/${categoryId}`, {
+                  method: 'POST', // Hoặc 'PUT' bằng JSON
+                  body: JSON.stringify(data)
+              });
+              const result = await res.json();
+              if (result.success) {
+                  showToast('Đã cập nhật danh mục!', '✅');
+                  setTimeout(() => window.location.href = '/Category/list', 1200);
+              } else {
+                  alert(result.message || 'Lỗi khi cập nhật');
+              }
+          } catch (err) {
+              alert('Lỗi kết nối');
+          } finally {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="bi bi-save"></i> Lưu thay đổi';
+          }
+      });
+
+      document.getElementById('btnDelete').addEventListener('click', async () => {
+          if (!confirm('Bạn có chắc muốn xóa danh mục này?')) return;
+          try {
+              const res = await apiFetch(`/api/category/destroy/${categoryId}`, { method: 'DELETE' });
+              const result = await res.json();
+              if (result.success) {
+                  showToast('Đã xóa danh mục!', '🗑️');
+                  setTimeout(() => window.location.href = '/Category/list', 1200);
+              } else alert(result.message);
+          } catch (err) { alert('Lỗi kết nối'); }
+      });
+      </script>
+
     </div>
   </div>
 </div>

@@ -19,7 +19,7 @@
     </div>
 
     <div class="st-form-body">
-      <form method="POST" action="/Category/save" class="st-validate">
+      <form id="addCategoryForm" class="st-validate">
 
         <div style="display:flex;flex-direction:column;gap:20px;">
 
@@ -42,7 +42,7 @@
         </div>
 
         <div class="st-form-actions" style="margin-top:24px;">
-          <button type="submit" class="btn btn-success btn-lg">
+          <button type="submit" class="btn btn-success btn-lg" id="btnSubmit">
             <i class="bi bi-plus-circle"></i> Thêm danh mục
           </button>
           <a href="/Category/list" class="btn btn-secondary btn-lg">
@@ -51,6 +51,38 @@
         </div>
 
       </form>
+
+      <script>
+      document.getElementById('addCategoryForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById('btnSubmit');
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData.entries());
+
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang lưu...';
+
+          try {
+              const res = await apiFetch('/api/category/store', {
+                  method: 'POST',
+                  body: JSON.stringify(data)
+              });
+              const result = await res.json();
+              if (result.success) {
+                  showToast('Đã thêm danh mục!', '✅');
+                  setTimeout(() => window.location.href = '/Category/list', 1500);
+              } else {
+                  alert(result.message || 'Lỗi khi thêm danh mục');
+              }
+          } catch (err) {
+              alert('Lỗi kết nối');
+          } finally {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="bi bi-plus-circle"></i> Thêm danh mục';
+          }
+      });
+      </script>
+
     </div>
   </div>
 </div>

@@ -13,17 +13,7 @@
       <div class="alert alert-success"><?php echo htmlspecialchars($flash, ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
 
-    <?php if (!empty($resetLink)): ?>
-      <div class="alert alert-info">
-        <div class="mb-2">Đã tạo link đặt lại mật khẩu.</div>
-        <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8'); ?>">
-          <i class="bi bi-box-arrow-up-right"></i> Mở trang đặt lại
-        </a>
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="navigator.clipboard.writeText('<?php echo htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8'); ?>')">
-          <i class="bi bi-clipboard"></i> Sao chép link
-        </button>
-      </div>
-    <?php endif; ?>
+
 
     <?php if (!empty($errors)): ?>
       <div class="alert alert-danger">

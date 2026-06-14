@@ -36,7 +36,7 @@
     </thead>
     <tbody>
       <?php foreach ($categories as $i => $category): ?>
-      <tr>
+      <tr id="cat-row-<?php echo $category->id; ?>">
         <td style="color:var(--text-muted);font-weight:700;"><?php echo $i + 1; ?></td>
         <td>
           <span style="font-weight:700;color:var(--text-dark);">
@@ -51,9 +51,9 @@
             <a href="/Category/edit/<?php echo $category->id; ?>" class="btn btn-warning btn-sm">
               <i class="bi bi-pencil"></i> Sửa
             </a>
-            <a href="/Category/delete/<?php echo $category->id; ?>" class="btn btn-danger btn-sm btn-delete-confirm">
+            <button type="button" class="btn btn-danger btn-sm btn-delete-cat" data-id="<?php echo $category->id; ?>">
               <i class="bi bi-trash"></i> Xoá
-            </a>
+            </button>
           </div>
         </td>
       </tr>
@@ -63,5 +63,28 @@
   <?php endif; ?>
 
 </div>
+
+<script>
+document.querySelectorAll('.btn-delete-cat').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        if (!confirm('Bạn có chắc muốn xóa danh mục này?')) return;
+        
+        try {
+            const res = await apiFetch(`/api/category/destroy/${id}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (result.success) {
+                showToast('Đã xóa danh mục!', '🗑️');
+                document.getElementById(`cat-row-${id}`).remove();
+            } else {
+                alert(result.message || 'Lỗi khi xóa');
+            }
+        } catch (err) {
+            alert('Lỗi kết nối');
+        }
+    });
+});
+</script>
+
 
 <?php include 'app/views/shares/footer.php'; ?>

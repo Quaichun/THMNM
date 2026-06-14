@@ -14,7 +14,8 @@ class ProductModel
     {
         $query = "SELECT p.id, p.name, p.description, p.price, p.image, c.name as category_name
                   FROM " . $this->table_name . " p
-                  LEFT JOIN category c ON p.category_id = c.id";
+                  LEFT JOIN category c ON p.category_id = c.id
+                  ORDER BY p.id ASC";
 
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
@@ -184,6 +185,16 @@ class ProductModel
         return $stmt->execute();
     }
 
+    public function addSpec($productId, $name, $value)
+    {
+        $sql = "INSERT INTO product_specs (product_id, spec_name, spec_value) VALUES (:pid, :name, :value)";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(':pid', $productId);
+        $stmt->bindParam(':name', $name);
+        $stmt->bindParam(':value', $value);
+        return $stmt->execute();
+    }
+
     public function saveSpecs($productId, $specs)
     {
         // Xóa thông số cũ
@@ -235,6 +246,26 @@ class ProductModel
             $params[':search'] = '%' . $filters['search'] . '%';
         }
 
+        $sort = $filters['sort'] ?? 'oldest';
+        $orderBy = 'p.id ASC';
+        switch ($sort) {
+            case 'price_asc':
+                $orderBy = 'p.price ASC, p.id DESC';
+                break;
+            case 'price_desc':
+                $orderBy = 'p.price DESC, p.id DESC';
+                break;
+            case 'name_asc':
+                $orderBy = 'p.name ASC, p.id DESC';
+                break;
+            case 'name_desc':
+                $orderBy = 'p.name DESC, p.id DESC';
+                break;
+            case 'oldest':
+                $orderBy = 'p.id ASC';
+                break;
+        }
+
         if (!empty($filters['specs'])) {
             foreach ($filters['specs'] as $specName => $specValue) {
                 if (empty($specValue)) continue;
@@ -244,7 +275,7 @@ class ProductModel
             }
         }
 
-        $sql .= " ORDER BY p.id ASC LIMIT :offset, :limit";
+        $sql .= " ORDER BY " . $orderBy . " LIMIT :offset, :limit";
         
         $stmt = $this->conn->prepare($sql);
         foreach ($params as $key => $val) {
@@ -320,4 +351,3 @@ class ProductModel
         return $results;
     }
 }
-?>

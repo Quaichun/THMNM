@@ -142,9 +142,10 @@ class AccountController
                         'Đặt lại mật khẩu'
                     );
 
-                    SessionHelper::setFlash('success', 'Hệ thống đã gửi hướng dẫn đặt lại mật khẩu đến email của bạn.');
+                    SessionHelper::setFlash('success', 'Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư (nhớ kiểm tra cả mục Spam nhé).');
+                    SessionHelper::setFlash('reset_link', '/Account/resetPassword?token=' . $rawToken);
                 } else {
-                    SessionHelper::setFlash('success', 'Nếu email tồn tại, hệ thống đã gửi hướng dẫn đặt lại mật khẩu.');
+                    SessionHelper::setFlash('success', 'Nếu email ' . htmlspecialchars($email) . ' tồn tại trong hệ thống, chúng tôi sẽ gửi link đặt lại mật khẩu đến đó.');
                 }
                 header('Location: /Account/forgotPassword');
                 return;
@@ -266,10 +267,20 @@ class AccountController
                 $verifyToken = bin2hex(random_bytes(32));
                 $this->accountModel->saveEmailVerifyToken($id, hash('sha256', $verifyToken));
                 $this->db->prepare("UPDATE account SET email_verified_at = NULL WHERE id = ?")->execute([$id]);
-                SessionHelper::setFlash('success', 'Cập nhật thành công. Vui lòng xác thực email mới.');
+                
+                MailHelper::send(
+                    $email,
+                    'Xác thực email mới - ShopTech',
+                    'Cập nhật email thành công!',
+                    'Bạn vừa thay đổi địa chỉ email trên hệ thống ShopTech. Vui lòng nhấn nút bên dưới để xác thực địa chỉ email mới này.',
+                    '/Account/verifyEmail?token=' . $verifyToken,
+                    'Xác thực email ngay'
+                );
+
+                SessionHelper::setFlash('success', 'Cập nhật thành công. Một email xác nhận đã được gửi đến ' . $email);
                 SessionHelper::setFlash('verify_link', '/Account/verifyEmail?token=' . $verifyToken);
             } else {
-                SessionHelper::setFlash('success', 'Cap nhat thong tin thanh cong!');
+                SessionHelper::setFlash('success', 'Cập nhật thông tin thành công!');
             }
 
             header('Location: /Account/profile?tab=info');

@@ -170,9 +170,10 @@ $bannerConfigs  = [
     <div class="st-sort-bar">
       <span><?php echo count($products); ?> sản phẩm</span>
       <select class="st-sort-select" id="sortProducts">
-        <option value="">Mặc định</option>
-        <option value="asc">Giá: Thấp → Cao</option>
-        <option value="desc">Giá: Cao → Thấp</option>
+        <option value="newest">Mới nhất</option>
+        <option value="oldest">Cũ nhất</option>
+        <option value="price_asc">Giá: Thấp → Cao</option>
+        <option value="price_desc">Giá: Cao → Thấp</option>
       </select>
     </div>
 

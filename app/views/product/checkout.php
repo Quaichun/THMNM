@@ -193,6 +193,9 @@ $qrUrl = '/Product/paymentQr?amount=' . (int)$total
   (function () {
     const qrBox = document.getElementById('checkoutQrBox');
     const radios = document.querySelectorAll('input[name="payment"]');
+    const form = document.getElementById('checkoutForm');
+    const btn = document.getElementById('placeOrderBtn');
+
     if (!qrBox || !radios.length) return;
 
     function syncQr() {
@@ -202,7 +205,49 @@ $qrUrl = '/Product/paymentQr?amount=' . (int)$total
 
     radios.forEach(r => r.addEventListener('change', syncQr));
     syncQr();
+
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const data = {
+                name: formData.get('name'),
+                phone: formData.get('phone'),
+                email: formData.get('email'),
+                address: formData.get('address'),
+                payment_method: formData.get('payment'),
+                note: formData.get('note')
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang xử lý...';
+
+            try {
+                const res = await apiFetch('/api/order/store', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('Đã đặt hàng thành công!', '📦');
+                    setTimeout(() => {
+                        window.location.href = '/Product/myOrders?success=1';
+                    }, 1500);
+                } else {
+                    let msg = result.message || 'Đặt hàng thất bại';
+                    if (result.errors) msg = Object.values(result.errors).join('\n');
+                    alert(msg);
+                }
+            } catch (err) {
+                alert('Có lỗi xảy ra, vui lòng thử lại');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-bag-check-fill"></i> Đặt hàng';
+            }
+        });
+    }
   })();
 </script>
+
 
 <?php include 'app/views/shares/footer.php'; ?>

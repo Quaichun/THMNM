@@ -87,19 +87,55 @@ if (!isset($statusMap[$currentStatus])) $currentStatus = 'pending';
           <?php echo $statusMap[$currentStatus]['label']; ?>
         </div>
         <?php if (SessionHelper::isAdmin()): ?>
-        <form method="POST" action="/Product/updateOrderStatus/<?php echo (int)$order->id; ?>">
+        <form id="updateStatusForm">
           <label class="form-label">Cập nhật trạng thái</label>
-          <select name="status" class="form-control" style="margin-bottom:14px" required>
+          <select name="status" id="statusSelect" class="form-control" style="margin-bottom:14px" required>
             <option value="pending" <?php if ($currentStatus === 'pending') echo 'selected'; ?>>Chờ xác nhận</option>
             <option value="processing" <?php if ($currentStatus === 'processing') echo 'selected'; ?>>Đang xử lý</option>
             <option value="shipping" <?php if ($currentStatus === 'shipping') echo 'selected'; ?>>Đang giao hàng</option>
             <option value="delivered" <?php if ($currentStatus === 'delivered') echo 'selected'; ?>>Đã giao hàng</option>
             <option value="cancelled" <?php if ($currentStatus === 'cancelled') echo 'selected'; ?>>Đã hủy</option>
           </select>
-          <button type="submit" class="btn btn-primary w-100">
+          <button type="submit" class="btn btn-primary w-100" id="btnSaveStatus">
             <i class="bi bi-check2-circle"></i> Lưu trạng thái
           </button>
         </form>
+
+        <script>
+        document.getElementById('updateStatusForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveStatus');
+            const statusSelect = document.getElementById('statusSelect');
+            const status = statusSelect.value;
+            const orderId = <?php echo (int)$order->id; ?>;
+            const statusMap = <?php echo json_encode($statusMap); ?>;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang lưu...';
+
+            try {
+                const res = await apiFetch(`/api/order/update/${orderId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('Đã cập nhật trạng thái!', '🚚');
+                    const badge = document.querySelector('[style*="background:#f8fafc"]');
+                    if (badge && statusMap[status]) {
+                        badge.textContent = statusMap[status].label;
+                        badge.style.color = statusMap[status].color;
+                    }
+                } else {
+                    alert(result.message || 'Lỗi cập nhật');
+                }
+            } catch (e) { alert('Lỗi kết nối'); } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check2-circle"></i> Lưu trạng thái';
+            }
+        });
+        </script>
+
         <?php else: ?>
           <div style="font-size:.9rem;color:var(--text-muted)">
             Bạn chỉ có quyền xem trạng thái giao hàng của đơn này.

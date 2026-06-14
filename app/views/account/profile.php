@@ -142,7 +142,7 @@ $avatarUrl  = !empty($user->avatar)
           <p>Cập nhật họ tên, tên đăng nhập và email của bạn</p>
         </div>
         <div class="st-form-body">
-          <form method="POST" action="/Account/updateProfile">
+          <form id="updateProfileForm">
 
             <div class="mb-4">
               <label class="form-label">Họ và tên *</label>
@@ -150,7 +150,7 @@ $avatarUrl  = !empty($user->avatar)
                 <i class="bi bi-person-badge st-input-icon"></i>
                 <input type="text" name="fullname"
                        class="form-control st-input-icon-pad"
-                       value="<?php echo htmlspecialchars($user->fullname, ENT_QUOTES, 'UTF-8'); ?>"
+                       value="<?php echo htmlspecialchars($user->fullname ?? '', ENT_QUOTES, 'UTF-8'); ?>"
                        required>
               </div>
             </div>
@@ -161,7 +161,7 @@ $avatarUrl  = !empty($user->avatar)
                 <i class="bi bi-at st-input-icon"></i>
                 <input type="text" name="username"
                        class="form-control st-input-icon-pad"
-                       value="<?php echo htmlspecialchars($user->username, ENT_QUOTES, 'UTF-8'); ?>"
+                       value="<?php echo htmlspecialchars($user->username ?? '', ENT_QUOTES, 'UTF-8'); ?>"
                        required>
               </div>
             </div>
@@ -176,28 +176,31 @@ $avatarUrl  = !empty($user->avatar)
                        required>
               </div>
               <small style="color:var(--text-muted)">
-                <?php if (!empty($user->email_verified_at)): ?>✅ Email đã xác thực<?php else: ?>⚠️ Email chưa xác thực<?php endif; ?>
+                <?php if (!empty($user->email_verified_at)): ?>
+                  <span class="text-success">✅ Email đã xác thực (<?php echo date('d/m/Y', strtotime($user->email_verified_at)); ?>)</span>
+                <?php else: ?>
+                  <span class="text-warning">⚠️ Email chưa xác thực</span>
+                  <?php 
+                  $vLink = SessionHelper::getFlash('verify_link');
+                  if ($vLink): ?>
+                    <div class="mt-2 p-2 border rounded bg-light fade-up">
+                      <p class="mb-1 text-primary" style="font-size:0.8rem"><strong>Chế độ Test:</strong> Xác thực email mới tại đây:</p>
+                      <a href="<?php echo $vLink; ?>" class="btn btn-sm btn-outline-primary py-0">Nhấn để xác thực ngay</a>
+                    </div>
+                  <?php endif; ?>
+                <?php endif; ?>
               </small>
-              <?php if (empty($user->email_verified_at)): ?>
-                <div style="margin-top:10px">
-                  <form method="POST" action="/Account/resendVerifyEmail" style="display:inline">
-                    <button type="submit" class="btn btn-outline-primary btn-sm">
-                      <i class="bi bi-arrow-repeat"></i> G&#7917;i l&#7841;i x&#225;c th&#7921;c
-                    </button>
-                  </form>
-                </div>
-              <?php endif; ?>
             </div>
 
             <div class="mb-4">
               <label class="form-label">Vai trò</label>
               <input type="text" class="form-control"
-                     value="<?php echo $user->role === 'admin' ? 'Quản trị viên' : 'Người dùng'; ?>"
+                     value="<?php echo ($user->role ?? 'user') === 'admin' ? 'Quản trị viên' : 'Người dùng'; ?>"
                      disabled style="opacity:.6;cursor:not-allowed">
             </div>
 
             <div class="st-form-actions">
-              <button type="submit" class="btn btn-primary">
+              <button type="submit" class="btn btn-primary" id="btnUpdateProfile">
                 <i class="bi bi-check-lg"></i> Lưu thay đổi
               </button>
             </div>
@@ -205,6 +208,37 @@ $avatarUrl  = !empty($user->avatar)
           </form>
         </div>
       </div>
+
+      <script>
+      document.getElementById('updateProfileForm')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById('btnUpdateProfile');
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData.entries());
+
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang tải...';
+
+          try {
+              const res = await apiFetch('/api/account/updateProfile', {
+                  method: 'POST',
+                  body: JSON.stringify(data)
+              });
+              const result = await res.json();
+              if (result.success) {
+                  showToast('Đã cập nhật hồ sơ!', '👤');
+                  setTimeout(() => location.reload(), 1200);
+              } else {
+                  let msg = result.message || 'Lỗi cập nhật';
+                  if (result.errors) msg = Object.values(result.errors).join('\n');
+                  alert(msg);
+              }
+          } catch (e) { alert('Lỗi kết nối'); } finally {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="bi bi-check-lg"></i> Lưu thay đổi';
+          }
+      });
+      </script>
 
       <!-- Thẻ ảnh đại diện riêng -->
       <div class="st-form-card" style="margin-top:20px">
@@ -222,7 +256,7 @@ $avatarUrl  = !empty($user->avatar)
                 <img src="<?php echo $avatarUrl; ?>" id="avatarDetailImg" alt="Avatar">
               <?php else: ?>
                 <div class="st-avatar-detail-initial" id="avatarDetailInitial">
-                  <?php echo strtoupper(mb_substr($user->fullname, 0, 1)); ?>
+                  <?php echo strtoupper(mb_substr($user->fullname ?? 'U', 0, 1)); ?>
                 </div>
               <?php endif; ?>
             </div>
@@ -283,7 +317,7 @@ $avatarUrl  = !empty($user->avatar)
           <p>Dùng mật khẩu mạnh để bảo vệ tài khoản</p>
         </div>
         <div class="st-form-body">
-          <form method="POST" action="/Account/changePassword">
+          <form id="changePasswordForm">
 
             <div class="mb-4">
               <label class="form-label">Mật khẩu hiện tại *</label>
@@ -328,7 +362,7 @@ $avatarUrl  = !empty($user->avatar)
             </div>
 
             <div class="st-form-actions">
-              <button type="submit" class="btn btn-primary">
+              <button type="submit" class="btn btn-primary" id="btnChangePw">
                 <i class="bi bi-shield-check"></i> Đổi mật khẩu
               </button>
             </div>
@@ -336,7 +370,90 @@ $avatarUrl  = !empty($user->avatar)
           </form>
         </div>
       </div>
+
+      <script>
+      document.getElementById('changePasswordForm')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById('btnChangePw');
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData.entries());
+
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang đổi...';
+
+          try {
+              const res = await apiFetch('/api/account/changePassword', {
+                  method: 'POST',
+                  body: JSON.stringify(data)
+              });
+              const result = await res.json();
+              if (result.success) {
+                  showToast('Đã đổi mật khẩu thành công!', '🔒');
+                  e.target.reset(); // Clear form
+              } else {
+                  let msg = result.message || 'Lỗi đổi mật khẩu';
+                  if (result.errors) msg = Object.values(result.errors).join('\n');
+                  alert(msg);
+              }
+          } catch (e) { alert('Lỗi kết nối'); } finally {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="bi bi-shield-check"></i> Đổi mật khẩu';
+          }
+      });
+      </script>
+
       <?php endif; ?>
+
+      <script>
+      // ─── Avatar Sidebar ───
+      document.getElementById('avatarFileInput')?.addEventListener('change', function() {
+          if (this.files && this.files[0]) document.getElementById('avatarForm').submit();
+      });
+
+      // ─── Avatar Detail ───
+      const avInput2 = document.getElementById('avatarFileInput2');
+      avInput2?.addEventListener('change', function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          // Preview
+          const reader = new FileReader();
+          reader.onload = function(re) {
+              const previewImg = document.getElementById('avatarNewImg');
+              const previewBox = document.getElementById('avatarNewPreview');
+              const saveBtn = document.getElementById('avatarSaveBtn');
+
+              if (previewImg) previewImg.src = re.target.result;
+              if (previewBox) previewBox.style.display = 'flex';
+              
+              const nameEl = document.getElementById('avatarNewName');
+              const sizeEl = document.getElementById('avatarNewSize');
+              if (nameEl) nameEl.textContent = file.name;
+              if (sizeEl) sizeEl.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+              
+              if (saveBtn) saveBtn.style.display = 'inline-block';
+              
+              // Copy file to hidden form
+              const dataTransfer = new DataTransfer();
+              dataTransfer.items.add(file);
+              const hiddenInput = document.getElementById('avatarFileHidden');
+              if (hiddenInput) hiddenInput.files = dataTransfer.files;
+          }
+          reader.readAsDataURL(file);
+      });
+
+      document.getElementById('avatarRemoveBtn')?.addEventListener('click', () => {
+          const previewBox = document.getElementById('avatarNewPreview');
+          const saveBtn = document.getElementById('avatarSaveBtn');
+          if (previewBox) previewBox.style.display = 'none';
+          if (saveBtn) saveBtn.style.display = 'none';
+          
+          if (avInput2) avInput2.value = '';
+          const hiddenInput = document.getElementById('avatarFileHidden');
+          if (hiddenInput) hiddenInput.value = '';
+      });
+      </script>
+
 
     </div>
   </div>

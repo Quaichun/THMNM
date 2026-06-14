@@ -680,5 +680,9 @@ exit;
         }
         header('Location: /Product');
     }
+    public function jqueryDemo()
+    {
+        include 'app/views/api_demo/jquery_list.php';
+    }
 }
 ?>
